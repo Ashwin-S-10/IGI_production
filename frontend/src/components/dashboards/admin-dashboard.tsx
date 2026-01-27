@@ -233,7 +233,7 @@ export function AdminDashboard() {
 
   const roundLookup = useMemo(
     () =>
-      rounds.reduce<RoundLookup>((acc, round) => {
+      rounds.reduce<RoundLookup>((acc: RoundLookup, round) => {
         acc[round.id] = round;
         return acc;
       }, {}),
