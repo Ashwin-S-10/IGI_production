@@ -38,8 +38,10 @@ export function Round1ReviewPanel() {
   const { teams } = useTeams();
   const questions = useMemo(() => getRoundQuestions("round1"), []);
 
+  type TeamLookup = Record<string, Team>;
+
   const teamLookup = useMemo(
-    () => teams.reduce<Record<string, Team>>((acc, supabaseTeam) => {
+    () => teams.reduce<TeamLookup>((acc, supabaseTeam) => {
       // Convert Supabase team to expected Team type
       const team: Team = {
         id: supabaseTeam.id,
@@ -55,8 +57,11 @@ export function Round1ReviewPanel() {
     [teams],
   );
 
+  type Question = (typeof questions)[number];
+  type QuestionLookup = Record<string, Question>;
+
   const questionLookup = useMemo(
-    () => questions.reduce<Record<string, (typeof questions)[number]>>((acc, question) => {
+    () => questions.reduce<QuestionLookup>((acc, question) => {
       acc[question.id] = question;
       return acc;
     }, {}),

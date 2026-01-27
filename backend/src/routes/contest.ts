@@ -7,30 +7,7 @@ import { scoreDebuggingAnswerWithGemini } from '../lib/gemini/round2-scoring';
 import { evaluateAnswerController } from '../lib/gemini/evaluationController';
 import { getRankings } from '../lib/supabase/teams-service';
 import { evaluateRound3Answer } from '../lib/gemini/round3-evaluation';
-
-// Round 3 question bank - imported dynamically to avoid build issues
-type RoundQuestion = {
-  id: string;
-  roundId: "round1" | "round2" | "round3";
-  title: string;
-  prompt: string;
-  difficulty: "intro" | "standard" | "advanced";
-  points: number;
-  timeLimit: string;
-  tags: string[];
-  starterCode?: string;
-  referenceNotes?: string;
-};
-
-async function getQuestionDetails(roundId: string, questionId: string): Promise<RoundQuestion | null> {
-  const { getQuestionDetails: getDetails } = await import('@project/shared');
-  return getDetails(roundId, questionId);
-}
-
-async function getRoundQuestions(roundId: string): Promise<RoundQuestion[]> {
-  const { getRoundQuestions: getQuestions } = await import('@project/shared');
-  return getQuestions(roundId);
-}
+import { getQuestionDetails, getRoundQuestions, type RoundQuestion } from '../../../shared/src/index';
 
 const router = Router();
 

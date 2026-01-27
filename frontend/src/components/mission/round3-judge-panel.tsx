@@ -59,9 +59,11 @@ export function Round3JudgePanel() {
   const [judgeState, setJudgeState] = useState<"idle" | "loading">("idle");
   const [alert, setAlert] = useState<JudgeAlert>({ type: "idle" });
 
+  type TeamLookup = Record<string, Team>;
+
   const teamLookup = useMemo(
     () =>
-      teams.reduce<Record<string, Team>>((acc, supabaseTeam) => {
+      teams.reduce<TeamLookup>((acc, supabaseTeam) => {
         // Convert Supabase team to expected Team type
         const team: Team = {
           id: supabaseTeam.id,
@@ -77,18 +79,22 @@ export function Round3JudgePanel() {
     [teams],
   );
 
+  type QuestionLookupType = Record<string, Round3Question>;
+
   const questionLookup = useMemo(
     () =>
-      questions.reduce<Record<string, Round3Question>>((acc, question) => {
+      questions.reduce<QuestionLookupType>((acc, question) => {
         acc[question.id] = question;
         return acc;
       }, {}),
     [questions],
   );
 
+  type SubmissionsLookup = Record<string, Round3Submission>;
+
   const submissionsById = useMemo(
     () =>
-      submissions.reduce<Record<string, Round3Submission>>((acc, submission) => {
+      submissions.reduce<SubmissionsLookup>((acc, submission) => {
         acc[submission.id] = submission;
         return acc;
       }, {}),

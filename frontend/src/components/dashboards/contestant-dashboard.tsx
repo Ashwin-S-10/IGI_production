@@ -111,15 +111,15 @@ export function ContestantDashboard() {
     setTelecastCompleted(completed);
   }, [setTelecastCompleted]);
 
+  type Round = (typeof rounds)[number];
+  type RoundLookup = Record<string, Round>;
+
   const roundLookup = useMemo(
     () =>
-      rounds.reduce<Record<string, (typeof rounds)[number]>>(
-        (acc: Record<string, (typeof rounds)[number]>, roundEntry) => {
-          acc[roundEntry.id] = roundEntry;
-          return acc;
-        },
-        {}
-      ),
+      rounds.reduce<RoundLookup>((acc, roundEntry) => {
+        acc[roundEntry.id] = roundEntry;
+        return acc;
+      }, {}),
     [rounds],
   );
 

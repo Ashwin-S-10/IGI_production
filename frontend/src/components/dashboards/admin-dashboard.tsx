@@ -228,15 +228,15 @@ export function AdminDashboard() {
     return roundsState.find(r => r.id === roundId);
   };
 
+  type Round = (typeof rounds)[number];
+  type RoundLookup = Record<string, Round>;
+
   const roundLookup = useMemo(
     () =>
-      rounds.reduce<Record<string, (typeof rounds)[number]>>(
-        (acc: Record<string, (typeof rounds)[number]>, round) => {
-          acc[round.id] = round;
-          return acc;
-        },
-        {}
-      ),
+      rounds.reduce<RoundLookup>((acc, round) => {
+        acc[round.id] = round;
+        return acc;
+      }, {}),
     [rounds],
   );
 
