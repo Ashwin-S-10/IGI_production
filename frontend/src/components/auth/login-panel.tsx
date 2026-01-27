@@ -148,30 +148,6 @@ const CardContent = ({
           {loading ? 'Authenticating...' : 'Enter'}
         </button>
 
-        {/* Credentials reference */}
-        <div className="mt-6 p-5 bg-black/30 border border-[#FF6B00]/20 text-xs text-[#FF6B00]/80 space-y-2.5 font-light backdrop-blur-sm">
-          <p className="text-[#FF6B00]/90 uppercase tracking-widest text-[10px] mb-3 font-normal">
-            Credentials Reference
-          </p>
-          {isCommander ? (
-            <p className="leading-relaxed">
-              Commander: Username <span className="text-white font-normal">agentalpha@foss.ops</span> / Password{' '}
-              <span className="text-white font-normal">192837</span>
-            </p>
-          ) : (
-            <>
-              <p className="leading-relaxed">
-                Test Account: <span className="text-white font-normal">agenttest@foss.ops</span> / Password{' '}
-                <span className="text-white font-normal">123456</span>
-              </p>
-              <p className="leading-relaxed">
-                Teams: Username format{' '}
-                <span className="text-[#FF6B00] font-normal italic">teamname@igifosscit</span> / Password: IGI-xxx (provided during registration)
-              </p>
-            </>
-          )}
-        </div>
-
         {(error || info) && (
           <p
             className={cn(
