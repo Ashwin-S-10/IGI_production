@@ -75,10 +75,11 @@ export class SupabaseDatabase {
     return data
   }
 
-  async updateTeam(id: string, updates: Tables['teams']['Update']): Promise<Team> {
+  type TeamUpdate = Database["public"]["Tables"]["teams"]["Update"];
+  async updateTeam(id: string, updates: TeamUpdate): Promise<Team> {
     const { data, error } = await this.client
       .from('teams')
-      .update(updates as any)
+      .update(updates as TeamUpdate)
       .eq('id', id)
       .select()
       .single()
