@@ -52,11 +52,11 @@ function toDate(value: unknown): Date | null {
   return null;
 }
 
-function latest<T extends { submitted_at?: string }>(entries: T[]): T | null {
+function latest<T extends { submittedAt: Date }>(entries: T[]): T | null {
   if (!entries.length) return null;
-  return [...entries].sort((a, b) => {
-    const aDate = a.submitted_at ? new Date(a.submitted_at).getTime() : 0;
-    const bDate = b.submitted_at ? new Date(b.submitted_at).getTime() : 0;
+  return [...entries].sort((a: T, b: T) => {
+    const aDate = a.submittedAt.getTime();
+    const bDate = b.submittedAt.getTime();
     return bDate - aDate;
   })[0];
 }
@@ -204,7 +204,7 @@ export function ContestantDashboard() {
 
   // Use Supabase teamData if available, fall back to Firestore team data
   const round1Score = teamData?.r1_score ?? latestRound1?.score ?? team?.round1_score ?? null;
-  const round2Score = teamData?.r2_score ?? latestRound2?.total_score ?? null;
+  const round2Score = teamData?.r2_score ?? latestRound2?.totalScore ?? null;
   const round3Score = useMemo(() => {
     if (!teamData) return null;
     const r3_1 = teamData.round3_1_score ?? 0;
