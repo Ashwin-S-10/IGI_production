@@ -36,7 +36,18 @@ const FRONTEND_URL = env.FRONTEND_URL;
 
 // Middleware
 app.use(cors({
-  origin: FRONTEND_URL,
+  origin: (origin, callback) => {
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'https://igifosscit.netlify.app',
+      env.FRONTEND_URL
+    ].filter(Boolean);
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
 app.use(express.json({ limit: '50mb' }));
