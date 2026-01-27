@@ -199,8 +199,9 @@ export function ContestantDashboard() {
     return () => clearInterval(interval);
   }, [user?.teamId]);
 
-  const latestRound1 = latest(round1Submissions);
-  const latestRound2 = latest(round2Submissions);
+  // Explicitly type the latest submissions to preserve their properties
+  const latestRound1: SubmissionRound1 | null = latest(round1Submissions);
+  const latestRound2: SubmissionRound2 | null = latest(round2Submissions);
 
   // Use Supabase teamData if available, fall back to Firestore team data
   const round1Score = teamData?.r1_score ?? latestRound1?.score ?? team?.round1_score ?? null;
