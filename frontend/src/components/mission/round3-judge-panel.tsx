@@ -63,8 +63,9 @@ export function Round3JudgePanel() {
   type TeamLookup = Record<string, Team>;
 
   const teamLookup = useMemo(
-    () =>
-      teams.reduce<TeamLookup>((acc: TeamLookup, supabaseTeam: SupabaseTeam) => {
+    () => {
+      const result: TeamLookup = {};
+      teams.forEach((supabaseTeam: SupabaseTeam) => {
         // Convert Supabase team to expected Team type
         const team: Team = {
           id: supabaseTeam.id,
@@ -74,31 +75,36 @@ export function Round3JudgePanel() {
           squad: supabaseTeam.squad as 'FOSS-1' | 'FOSS-2' | undefined,
           round1Score: supabaseTeam.round1_score || undefined,
         };
-        acc[team.id] = team;
-        return acc;
-      }, {}),
+        result[team.id] = team;
+      });
+      return result;
+    },
     [teams],
   );
 
   type QuestionLookupType = Record<string, Round3Question>;
 
   const questionLookup = useMemo(
-    () =>
-      questions.reduce<QuestionLookupType>((acc: QuestionLookupType, question: Round3Question) => {
-        acc[question.id] = question;
-        return acc;
-      }, {}),
+    () => {
+      const result: QuestionLookupType = {};
+      questions.forEach((question: Round3Question) => {
+        result[question.id] = question;
+      });
+      return result;
+    },
     [questions],
   );
 
   type SubmissionsLookup = Record<string, Round3Submission>;
 
   const submissionsById = useMemo(
-    () =>
-      submissions.reduce<SubmissionsLookup>((acc: SubmissionsLookup, submission: Round3Submission) => {
-        acc[submission.id] = submission;
-        return acc;
-      }, {}),
+    () => {
+      const result: SubmissionsLookup = {};
+      submissions.forEach((submission: Round3Submission) => {
+        result[submission.id] = submission;
+      });
+      return result;
+    },
     [submissions],
   );
 

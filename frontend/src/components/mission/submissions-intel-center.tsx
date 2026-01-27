@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ClipboardList, FileText, Eye, Flag, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
 import { MissionButton } from "@/components/ui/button";
 import { useSubmissionsRound1, useSubmissionsRound2, useTeams } from "@/lib/firestore/hooks";
+import type { SubmissionRound1, SubmissionRound2 } from "@/lib/supabase/models";
 
 export function SubmissionsIntelCenter() {
   const router = useRouter();
@@ -15,20 +16,21 @@ export function SubmissionsIntelCenter() {
   const [filterRound, setFilterRound] = useState<'all' | 'round1' | 'round2'>('all');
 
   const allSubmissions = useMemo(() => {
-    const r1Subs = round1Submissions.map(sub => ({
+    type Team = (typeof teams)[number];
+    const r1Subs = round1Submissions.map((sub: SubmissionRound1) => ({
       ...sub,
       round: 'round1' as const,
       score: sub.score,
       submittedAt: sub.submitted_at,
-      teamName: teams.find(t => t.id === sub.team_id)?.name || `Team ${sub.team_id}`
+      teamName: teams.find((t: Team) => t.id === sub.team_id)?.name || `Team ${sub.team_id}`
     }));
     
-    const r2Subs = round2Submissions.map(sub => ({
+    const r2Subs = round2Submissions.map((sub: SubmissionRound2) => ({
       ...sub,
       round: 'round2' as const,
       score: sub.total_score,
       submittedAt: sub.submitted_at,
-      teamName: teams.find(t => t.id === sub.team_id)?.name || `Team ${sub.team_id}`
+      teamName: teams.find((t: Team) => t.id === sub.team_id)?.name || `Team ${sub.team_id}`
     }));
 
     return [...r1Subs, ...r2Subs].sort((a, b) => {

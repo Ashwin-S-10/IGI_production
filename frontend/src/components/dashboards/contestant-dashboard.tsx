@@ -52,12 +52,14 @@ function toDate(value: unknown): Date | null {
   return null;
 }
 
-function latest<T extends { submittedAt: Date }>(entries: T[]): T | null {
+function latest<T extends { submitted_at: string }>(entries: T[]): T | null {
   if (!entries.length) return null;
   return [...entries].sort((a: T, b: T) => {
-    const aDate = a.submittedAt.getTime();
-    const bDate = b.submittedAt.getTime();
+    const aDate = new Date(a.submitted_at).getTime();
+    const bDate = new Date(b.submitted_at).getTime();
     return bDate - aDate;
+  })[0];
+}
   })[0];
 }
 
@@ -199,13 +201,15 @@ export function ContestantDashboard() {
     return () => clearInterval(interval);
   }, [user?.teamId]);
 
-  // Explicitly type the latest submissions to preserve their properties
-  const latestRound1: SubmissionRound1 | null = latest(round1Submissions);
-  const latestRound2: SubmissionRound2 | null = latest(round2Submissions);
+  // Submissions now use raw Supabase types (snake_case)
+  type Round1Sub = (typeof round1Submissions)[number];
+  type Round2Sub = (typeof round2Submissions)[number];
+  const latestRound1: Round1Sub | null = latest(round1Submissions);
+  const latestRound2: Round2Sub | null = latest(round2Submissions);
 
   // Use Supabase teamData if available, fall back to Firestore team data
   const round1Score = teamData?.r1_score ?? latestRound1?.score ?? team?.round1_score ?? null;
-  const round2Score = teamData?.r2_score ?? latestRound2?.totalScore ?? null;
+  const round2Score = teamData?.r2_score ?? latestRound2?.total_score ?? null;
   const round3Score = useMemo(() => {
     if (!teamData) return null;
     const r3_1 = teamData.round3_1_score ?? 0;

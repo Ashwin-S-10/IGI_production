@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Activity, Brain, Play, Pause, RotateCcw, CheckCircle2, Clock, AlertTriangle, Zap } from "lucide-react";
 import { MissionButton } from "@/components/ui/button";
 import { useAIJobs, useSubmissionsRound1, useSubmissionsRound2 } from "@/lib/firestore/hooks";
-import type { AIJob } from "@/lib/supabase/models";
+import type { AIJob, SubmissionRound1, SubmissionRound2 } from "@/lib/supabase/models";
 
 export function AIScoringCenter() {
   const router = useRouter();
@@ -27,8 +27,8 @@ export function AIScoringCenter() {
 
   const scoringStats = useMemo(() => {
     const totalSubmissions = round1Submissions.length + round2Submissions.length;
-    const scoredR1 = round1Submissions.filter(sub => typeof sub.score === 'number').length;
-    const scoredR2 = round2Submissions.filter(sub => typeof sub.total_score === 'number').length;
+    const scoredR1 = round1Submissions.filter((sub: SubmissionRound1) => typeof sub.score === 'number').length;
+    const scoredR2 = round2Submissions.filter((sub: SubmissionRound2) => typeof sub.total_score === 'number').length;
     const totalScored = scoredR1 + scoredR2;
     const pendingScoring = totalSubmissions - totalScored;
 
@@ -66,10 +66,12 @@ export function AIScoringCenter() {
     }
   };
 
-  const formatDate = (date: any) => {
+  const formatDate = (date: Date | string | { toDate?: () => Date } | null | undefined) => {
     if (!date) return 'Unknown';
-    const d = date instanceof Date ? date : (typeof date === 'string' ? new Date(date) : (date.toDate?.() || new Date(date)));
-    return d.toLocaleString();
+    if (date instanceof Date) return date.toLocaleString();
+    if (typeof date === 'string') return new Date(date).toLocaleString();
+    if (typeof date === 'object' && date.toDate) return date.toDate().toLocaleString();
+    return new Date().toLocaleString();
   };
 
   const getStatusIcon = (status: string) => {
@@ -208,7 +210,7 @@ export function AIScoringCenter() {
             Job Queue ({jobs.length})
           </h3>
           <div className="space-y-4 max-h-96 overflow-y-auto">
-            {jobs.map((job) => (
+            {jobs.map((job: AIJob) => (
               <article
                 key={job.id}
                 className={`border p-4 rounded-2xl cursor-pointer transition-all duration-300 ${

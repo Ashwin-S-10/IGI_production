@@ -255,23 +255,26 @@ export function AdminDashboard() {
   };
 
   const recentActivity = useMemo(() => {
-    const normalizeRound1 = round1Submissions.map((submission: SubmissionRound1) => ({
+    type Round1Sub = (typeof round1Submissions)[number];
+    type Round2Sub = (typeof round2Submissions)[number];
+    
+    const normalizeRound1 = round1Submissions.map((submission: Round1Sub) => ({
       id: submission.id,
       round: "round1" as const,
-      teamId: submission.teamId,
-      submittedAt: submission.submittedAt,
+      teamId: submission.team_id,
+      submittedAt: new Date(submission.submitted_at),
       scoreLabel:
         typeof submission.score === "number" ? `Score ${submission.score.toFixed(1)}/10` : "Score pending",
     }));
 
-    const normalizeRound2 = round2Submissions.map((submission: SubmissionRound2) => ({
+    const normalizeRound2 = round2Submissions.map((submission: Round2Sub) => ({
       id: submission.id,
       round: "round2" as const,
-      teamId: submission.teamId,
-      submittedAt: submission.submittedAt,
+      teamId: submission.team_id,
+      submittedAt: new Date(submission.submitted_at),
       scoreLabel:
-        typeof submission.totalScore === "number"
-          ? `Score ${submission.totalScore.toFixed(1)}/10`
+        typeof submission.total_score === "number"
+          ? `Score ${submission.total_score.toFixed(1)}/10`
           : "Score pending",
     }));
 

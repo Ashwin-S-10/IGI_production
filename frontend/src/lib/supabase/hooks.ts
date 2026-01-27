@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { db } from './database'
 import type { Team, Round, SubmissionRound1, SubmissionRound2, AIJob, Telecast } from './database'
 
 // Teams hooks

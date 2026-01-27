@@ -11,7 +11,7 @@ type SubmissionRound2 = Tables['submissions_round2']['Row']
 type AIJob = Tables['ai_jobs']['Row']
 type Telecast = Tables['telecast']['Row']
 type TelecastViewer = Tables['telecast_viewers']['Row']
-type TeamUpdate = Database["public"]["Tables"]["teams"]["Update"];
+type TeamUpdate = Tables['teams']['Update'];
 
 export class SupabaseDatabase {
   private client = supabase
@@ -78,9 +78,10 @@ export class SupabaseDatabase {
   }
 
   async updateTeam(id: string, updates: TeamUpdate): Promise<Team> {
-    const { data, error } = await this.client
+    const { data, error} = await this.client
       .from('teams')
-      .update(updates as TeamUpdate)
+      // @ts-expect-error - Supabase generated types issue with Update type inference
+      .update(updates)
       .eq('id', id)
       .select()
       .single()
@@ -112,7 +113,8 @@ export class SupabaseDatabase {
   async updateRound(id: string, updates: Tables['rounds']['Update']): Promise<Round> {
     const { data, error } = await this.client
       .from('rounds')
-      .update(updates as any)
+      // @ts-expect-error - Supabase generated types issue with Update type inference
+      .update(updates)
       .eq('id', id)
       .select()
       .single()
@@ -151,7 +153,8 @@ export class SupabaseDatabase {
   async updateSubmissionRound1(id: string, updates: Tables['submissions_round1']['Update']): Promise<SubmissionRound1> {
     const { data, error } = await this.client
       .from('submissions_round1')
-      .update(updates as any)
+      // @ts-expect-error - Supabase generated types issue
+      .update(updates)
       .eq('id', id)
       .select()
       .single()
@@ -190,7 +193,8 @@ export class SupabaseDatabase {
   async updateSubmissionRound2(id: string, updates: Tables['submissions_round2']['Update']): Promise<SubmissionRound2> {
     const { data, error } = await this.client
       .from('submissions_round2')
-      .update(updates as any)
+      // @ts-expect-error - Supabase generated types issue
+      .update(updates)
       .eq('id', id)
       .select()
       .single()
@@ -224,7 +228,8 @@ export class SupabaseDatabase {
   async updateAIJob(id: string, updates: Tables['ai_jobs']['Update']): Promise<AIJob> {
     const { data, error } = await this.client
       .from('ai_jobs')
-      .update(updates as any)
+      // @ts-expect-error - Supabase generated types issue
+      .update(updates)
       .eq('id', id)
       .select()
       .single()
@@ -261,7 +266,8 @@ export class SupabaseDatabase {
     // First, deactivate any existing telecasts
     await this.client
       .from('telecast')
-      .update({ active: false } as any)
+      // @ts-expect-error - Supabase generated types issue
+      .update({ active: false })
       .eq('active', true)
 
     // Create new telecast
@@ -283,7 +289,8 @@ export class SupabaseDatabase {
   async clearTelecast(): Promise<void> {
     const { error } = await this.client
       .from('telecast')
-      .update({ active: false } as any)
+      // @ts-expect-error - Supabase generated types issue
+      .update({ active: false })
       .eq('active', true)
 
     if (error) throw error
