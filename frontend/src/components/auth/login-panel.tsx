@@ -61,27 +61,27 @@ const CardContent = ({
       <div className="absolute w-full h-px bg-gradient-to-r from-transparent via-[#FF6B00]/40 to-transparent animate-scan" />
     </div>
 
-    <div className="p-8 relative z-10">
-      <h3 className="text-2xl text-white font-light tracking-[0.2em] uppercase mb-6">
+    <div className="p-6 relative z-10">
+      <h3 className="text-2xl text-white font-light tracking-[0.2em] uppercase mb-4">
         Access Control
       </h3>
 
       {/* Role Display */}
-      <div className="space-y-2 mb-6 select-none">
+      <div className="space-y-2 mb-4 select-none">
         <label className="text-[#FF6B00]/90 font-light uppercase tracking-widest text-xs">
           Role Selection
         </label>
-        <div className="bg-black/40 px-5 py-3 border border-[#FF6B00]/20 hover:border-[#FF6B00]/40 transition-colors backdrop-blur-md">
+        <div className="bg-black/40 px-4 py-2.5 border border-[#FF6B00]/20 hover:border-[#FF6B00]/40 transition-colors backdrop-blur-md">
           <span className="text-white/90 font-light tracking-wide">
             {isCommander ? 'Commander' : 'Soldier'}
           </span>
-          <p className="text-[#FF6B00]/60 text-xs mt-1">
+          <p className="text-[#FF6B00]/60 text-xs mt-0.5">
             Click anywhere on card to switch to {isCommander ? 'Soldier' : 'Commander'}
           </p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
           <label className="text-[#FF6B00]/90 font-light uppercase tracking-widest text-xs">
             Username
@@ -143,7 +143,7 @@ const CardContent = ({
         <button
           type="submit"
           disabled={loading || !email || !password}
-          className="w-full bg-gradient-to-r from-[#FF6B00]/80 to-[#CC3300]/80 hover:from-[#FF6B00] hover:to-[#CC3300] text-white font-light uppercase tracking-[0.3em] py-4 text-sm shadow-lg shadow-[#FF6B00]/30 border border-[#FF6B00]/40 transition-all transform hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed mt-6"
+          className="w-full bg-gradient-to-r from-[#FF6B00]/80 to-[#CC3300]/80 hover:from-[#FF6B00] hover:to-[#CC3300] text-white font-light uppercase tracking-[0.3em] py-3 text-sm shadow-lg shadow-[#FF6B00]/30 border border-[#FF6B00]/40 transition-all transform hover:scale-[1.01] disabled:opacity-50 disabled:cursor-not-allowed mt-4"
         >
           {loading ? 'Authenticating...' : 'Enter'}
         </button>
@@ -151,7 +151,7 @@ const CardContent = ({
         {(error || info) && (
           <p
             className={cn(
-              "border p-3 text-sm mt-4 backdrop-blur-md",
+              "border p-2.5 text-sm mt-3 backdrop-blur-md",
               error ? "border-[#8B1A1A] bg-[#8B1A1A]/20 text-red-400" : "border-[#FF6B00]/50 bg-[#FF6B00]/10 text-[#FF6B00]",
             )}
           >
@@ -245,7 +245,7 @@ export function LoginPanel({ defaultMode = "login" }: LoginPanelProps = {}) {
       </div>
 
       {/* Login Content */}
-      <div className="container relative z-10 mx-auto px-4 py-12">
+      <div className="container relative z-10 mx-auto px-4 py-10">
         <div className="max-w-xl mx-auto">
           {/* Professional title */}
           <div className="text-center mb-8 animate-fade-in">
@@ -265,7 +265,7 @@ export function LoginPanel({ defaultMode = "login" }: LoginPanelProps = {}) {
           {/* Flip Card Container */}
           <div 
             className="relative bg-transparent animate-slide-up overflow-visible cursor-pointer"
-            style={{ perspective: '1000px', height: '650px' }} // Fixed height to ensure rotation axis is stable
+            style={{ perspective: '1000px', height: '520px' }} // Maintain fixed height for flip animation
             onClick={(e) => {
               const target = e.target as HTMLElement;
               // Only flip if NOT clicking on inputs, buttons, or selecting text
