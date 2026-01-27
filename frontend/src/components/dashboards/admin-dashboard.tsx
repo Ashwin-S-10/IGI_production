@@ -255,7 +255,7 @@ export function AdminDashboard() {
   };
 
   const recentActivity = useMemo(() => {
-    const normalizeRound1 = round1Submissions.map((submission) => ({
+    const normalizeRound1 = round1Submissions.map((submission: SubmissionRound1) => ({
       id: submission.id,
       round: "round1" as const,
       teamId: submission.team_id,
@@ -264,7 +264,7 @@ export function AdminDashboard() {
         typeof submission.score === "number" ? `Score ${submission.score.toFixed(1)}/10` : "Score pending",
     }));
 
-    const normalizeRound2 = round2Submissions.map((submission) => ({
+    const normalizeRound2 = round2Submissions.map((submission: SubmissionRound2) => ({
       id: submission.id,
       round: "round2" as const,
       teamId: submission.team_id,
