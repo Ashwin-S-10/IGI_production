@@ -1,0 +1,141 @@
+```
+IGI CONTEST PLATFORM - SPLIT ARCHITECTURE
+==========================================
+
+OLD STRUCTURE (Monolith):
+┌─────────────────────────────────────┐
+│       Next.js Application           │
+│  ┌────────────────────────────┐    │
+│  │  Frontend (React/UI)       │    │
+│  └────────────────────────────┘    │
+│  ┌────────────────────────────┐    │
+│  │  API Routes (/app/api/)    │    │
+│  └────────────────────────────┘    │
+│  ┌────────────────────────────┐    │
+│  │  Database/Auth Logic       │    │
+│  └────────────────────────────┘    │
+└─────────────────────────────────────┘
+         ↓
+    Supabase DB
+
+
+NEW STRUCTURE (Split):
+┌──────────────────────────┐         ┌──────────────────────────┐
+│   FRONTEND (Next.js)     │         │   BACKEND (Express.js)   │
+│   Port: 3000             │ ←────→  │   Port: 4000             │
+├──────────────────────────┤         ├──────────────────────────┤
+│ • React Components       │  HTTP   │ • API Routes             │
+│ • Pages/Layouts          │  JSON   │   /api/auth/*            │
+│ • UI/UX                  │         │   /api/contest/*         │
+│ • API Client             │         │   /api/mission/*         │
+│   (api-client.ts)        │         │   /api/uploads/*         │
+│                          │         │ • Session Management     │
+│ Dependencies:            │         │ • Database Access        │
+│ • react, next            │         │ • Auth Logic             │
+│ • tanstack/query         │         │ • Business Logic         │
+│ • tailwind, lucide       │         │                          │
+│                          │         │ Dependencies:            │
+│ ┌──────────────────────┐ │         │ • express, cors          │
+│ │ localStorage:        │ │         │ • @supabase/supabase-js  │
+│ │ - sessionId          │ │         │ • firebase-admin         │
+│ └──────────────────────┘ │         │ • @google-cloud/vision   │
+└──────────────────────────┘         └──────────────────────────┘
+                                               ↓
+                                      ┌──────────────────┐
+                                      │   Supabase DB    │
+                                      ├──────────────────┤
+                                      │ • teams          │
+                                      │ • rounds         │
+                                      │ • submissions_*  │
+                                      │ • telecast       │
+                                      │ • ai_jobs        │
+                                      └──────────────────┘
+
+
+API COMMUNICATION FLOW:
+═════════════════════════
+
+1. User Login:
+   Frontend → api.auth.login(email, pass)
+           → Backend /api/auth/login
+           ← { sessionId, user }
+   Frontend stores sessionId in localStorage
+
+2. Authenticated Request:
+   Frontend → api.contest.getTelecastStatus()
+           → Backend /api/contest/telecast/status
+             Headers: { x-session-id: "abc123" }
+           ← { active, videoPath, ... }
+
+3. Database Query:
+   Backend → Supabase (with service role key)
+         ← Data
+   Backend → Frontend (JSON)
+
+
+DEPLOYMENT OPTIONS:
+═══════════════════
+
+Frontend:                Backend:
+┌──────────────┐        ┌──────────────┐
+│   Vercel     │        │   Railway    │
+│   Netlify    │        │   Render     │
+│   Cloudflare │        │   AWS/GCP    │
+└──────────────┘        └──────────────┘
+        ↓                       ↓
+    Static/SSR            Node.js Server
+        ↓                       ↓
+    CDN Edge               Load Balancer
+                               ↓
+                          Auto-scaling
+
+
+ENVIRONMENT VARIABLES:
+═══════════════════════
+
+Frontend (.env.local):
+┌────────────────────────────────────────┐
+│ NEXT_PUBLIC_API_URL=http://...        │
+│ NEXT_PUBLIC_SUPABASE_URL=https://...  │
+│ NEXT_PUBLIC_SUPABASE_ANON_KEY=...     │
+└────────────────────────────────────────┘
+
+Backend (.env):
+┌────────────────────────────────────────┐
+│ PORT=4000                              │
+│ FRONTEND_URL=http://localhost:3000     │
+│ NEXT_PUBLIC_SUPABASE_URL=https://...  │
+│ NEXT_PUBLIC_SUPABASE_ANON_KEY=...     │
+│ SUPABASE_SERVICE_ROLE_KEY=...         │
+│ FIREBASE_PROJECT_ID=...               │
+│ GOOGLE_CLOUD_PROJECT_ID=...           │
+└────────────────────────────────────────┘
+
+
+BENEFITS OF SPLIT:
+══════════════════
+
+✅ Independent Scaling
+   - Scale frontend and backend separately
+   - Handle traffic spikes efficiently
+
+✅ Easier Deployment
+   - Deploy frontend to CDN (fast global access)
+   - Deploy backend to server with compute resources
+
+✅ Better Security
+   - Sensitive keys only in backend
+   - Frontend never exposes service keys
+
+✅ Team Workflow
+   - Frontend and backend teams work independently
+   - Clearer separation of concerns
+
+✅ Cost Optimization
+   - Static frontend = cheaper hosting
+   - Backend scales based on load
+
+✅ Technology Flexibility
+   - Can replace backend with different language/framework
+   - Frontend remains unchanged
+```

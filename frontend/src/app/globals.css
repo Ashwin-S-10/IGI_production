@@ -1,0 +1,334 @@
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+/* Military Hackathon Command Center Design System
+   Color Scheme: Tactical black, Blood red, Orange accent
+*/
+
+:root {
+  --background: #0a0807;
+  --foreground: #c4b8a8;
+  --accent: #FF6B00;
+  --accent-2: #8B1A1A;
+  --surface: #12100e;
+  --surface-raised: #1a1714;
+  --grid: rgba(255, 107, 0, 0.1);
+  --border: #2a2520;
+  --muted: #1f1c18;
+  --muted-foreground: #6b6155;
+  --primary: #8B7E66;
+  --destructive: #8B1A1A;
+  --radius: 0rem;
+}
+
+body {
+  font-family: 'Rajdhani', system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  background: linear-gradient(135deg, #0a0807 0%, #12100e 50%, #0a0807 100%);
+  color: var(--foreground);
+  min-height: 100vh;
+  margin: 0;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+::selection {
+  background: rgba(255, 107, 0, 0.3);
+  color: var(--foreground);
+}
+
+.grid-overlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(transparent 95%, var(--grid) 95%),
+    linear-gradient(90deg, transparent 95%, var(--grid) 95%);
+  background-size: 4rem 4rem;
+  opacity: 0.15;
+  pointer-events: none;
+}
+
+.glass-panel {
+  background: rgba(18, 16, 14, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4), inset 0 0 20px rgba(0, 0, 0, 0.2);
+  border-radius: 1rem;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.glass-panel-highlight {
+  background: rgba(255, 107, 0, 0.1);
+  border: 1px solid rgba(255, 107, 0, 0.3);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4), inset 0 0 20px rgba(255, 107, 0, 0.05);
+  border-radius: 1rem;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.glow {
+  position: relative;
+}
+
+.glow::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  border-radius: inherit;
+  background: linear-gradient(120deg, rgba(255, 107, 0, 0.4), rgba(139, 26, 26, 0.3));
+  filter: blur(18px);
+  opacity: 0.7;
+}
+
+/* Neon Orange Text Effect */
+.neon-orange-text {
+  color: #FF8C00;
+  text-shadow:
+    0 0 5px rgba(255, 140, 0, 0.8),
+    0 0 10px rgba(255, 140, 0, 0.6),
+    0 0 15px rgba(255, 120, 0, 0.4);
+  animation: neon-orange-pulse 2s ease-in-out infinite;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+}
+
+/* Red Neon Text Effect */
+.neon-red-text {
+  color: #FF2222;
+  text-shadow:
+    0 0 10px rgba(255, 50, 50, 1),
+    0 0 20px rgba(255, 50, 50, 0.8),
+    0 0 40px rgba(255, 30, 30, 0.6),
+    0 0 80px rgba(255, 0, 0, 0.4),
+    0 0 120px rgba(200, 0, 0, 0.3);
+  animation: neon-red-pulse 2s ease-in-out infinite;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+@keyframes neon-red-pulse {
+  0%, 100% {
+    text-shadow:
+      0 0 10px rgba(255, 50, 50, 1),
+      0 0 20px rgba(255, 50, 50, 0.8),
+      0 0 40px rgba(255, 30, 30, 0.6),
+      0 0 80px rgba(255, 0, 0, 0.4);
+  }
+  50% {
+    text-shadow:
+      0 0 15px rgba(255, 80, 80, 1),
+      0 0 30px rgba(255, 50, 50, 1),
+      0 0 60px rgba(255, 30, 30, 0.8),
+      0 0 100px rgba(255, 0, 0, 0.5);
+  }
+}
+
+@keyframes neon-orange-pulse {
+  0%, 100% {
+    text-shadow:
+      0 0 5px rgba(255, 140, 0, 0.8),
+      0 0 10px rgba(255, 140, 0, 0.6),
+      0 0 15px rgba(255, 120, 0, 0.4);
+  }
+  50% {
+    text-shadow:
+      0 0 8px rgba(255, 140, 0, 1),
+      0 0 15px rgba(255, 140, 0, 0.8),
+      0 0 25px rgba(255, 120, 0, 0.5);
+  }
+}
+
+/* Blood splatter effect */
+.blood-splatter {
+  background-image:
+    radial-gradient(ellipse at 15% 25%, rgba(139, 26, 26, 0.4) 0%, rgba(139, 26, 26, 0.2) 20%, transparent 40%),
+    radial-gradient(ellipse at 85% 15%, rgba(139, 26, 26, 0.3) 0%, rgba(139, 26, 26, 0.1) 18%, transparent 35%),
+    radial-gradient(ellipse at 45% 75%, rgba(139, 26, 26, 0.35) 0%, rgba(139, 26, 26, 0.15) 22%, transparent 45%);
+}
+
+/* Bullet holes */
+.bullet-holes {
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.5) 3px, rgba(139, 26, 26, 0.3) 4px, transparent 7px),
+    radial-gradient(circle at 75% 15%, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.5) 4px, rgba(139, 26, 26, 0.25) 5px, transparent 8px),
+    radial-gradient(circle at 50% 70%, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.5) 3px, rgba(139, 26, 26, 0.3) 4px, transparent 7px);
+}
+
+/* Combat grid */
+.combat-grid {
+  background-image:
+    linear-gradient(rgba(255, 107, 0, 0.15) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 107, 0, 0.15) 1px, transparent 1px),
+    linear-gradient(rgba(42, 37, 32, 0.3) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(42, 37, 32, 0.3) 1px, transparent 1px);
+  background-size: 50px 50px, 50px 50px, 10px 10px, 10px 10px;
+}
+
+/* Damaged armor plate */
+.damaged-armor {
+  background: linear-gradient(145deg, var(--surface), var(--muted));
+  box-shadow:
+    inset 4px 4px 8px rgba(0, 0, 0, 0.8),
+    inset -4px -4px 8px rgba(255, 255, 255, 0.02),
+    inset 0 0 30px rgba(139, 26, 26, 0.1);
+}
+
+/* Smoke overlay */
+.smoke-overlay {
+  background-image:
+    radial-gradient(ellipse at 30% 40%, rgba(80, 80, 80, 0.2) 0%, rgba(80, 80, 80, 0.08) 40%, transparent 60%),
+    radial-gradient(ellipse at 70% 20%, rgba(60, 60, 60, 0.15) 0%, rgba(60, 60, 60, 0.06) 35%, transparent 55%),
+    radial-gradient(ellipse at 50% 80%, rgba(70, 70, 70, 0.22) 0%, rgba(70, 70, 70, 0.1) 45%, transparent 65%);
+}
+
+/* Battle damage shadow */
+.battle-damage-shadow {
+  box-shadow:
+    0 8px 16px rgba(0, 0, 0, 0.8),
+    0 20px 40px rgba(0, 0, 0, 0.6),
+    inset 0 3px 6px rgba(139, 26, 26, 0.3),
+    inset 0 -3px 6px rgba(0, 0, 0, 0.7);
+}
+
+/* Distressed text effect */
+.distressed-text {
+  text-shadow:
+    3px 3px 0px rgba(0, 0, 0, 0.9),
+    -1px -1px 0px rgba(139, 26, 26, 0.5),
+    0 0 15px rgba(0, 0, 0, 0.7),
+    0 0 5px rgba(139, 26, 26, 0.3);
+  filter: contrast(1.15);
+}
+
+/* Scan line animation */
+@keyframes scan {
+  0% { top: -10%; }
+  100% { top: 110%; }
+}
+
+.animate-scan {
+  animation: scan 3s linear infinite;
+}
+
+/* Fade in animation */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease-in;
+}
+
+/* Slide up animation */
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.6s ease-out;
+}
+
+/* Slide in animation for list items */
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in {
+  animation: slide-in 0.4s ease-out forwards;
+  opacity: 0;
+}
+
+/* Glitch hover effect */
+@keyframes intense-glitch {
+  0%, 100% { transform: translate(0); filter: hue-rotate(0deg); }
+  10% { transform: translate(-4px, 4px); filter: hue-rotate(8deg); }
+  20% { transform: translate(4px, -4px); filter: hue-rotate(-8deg); }
+  30% { transform: translate(-4px, -4px); filter: hue-rotate(8deg); }
+  40% { transform: translate(4px, 4px); filter: hue-rotate(-8deg); }
+  50% { transform: translate(-3px, 3px); filter: hue-rotate(0deg); }
+}
+
+.intense-glitch-hover:hover {
+  animation: intense-glitch 0.5s ease-in-out;
+}
+
+/* Pulse glow animation */
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.1);
+  }
+}
+
+.pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Card styling */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 20px rgba(255, 107, 0, 0.2);
+}
+
+/* Button styling */
+.btn-primary {
+  background: linear-gradient(135deg, #FF6B00, #FF8C00);
+  color: white;
+  font-family: 'Orbitron', sans-serif;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  border: 2px solid rgba(255, 107, 0, 0.5);
+  transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #FF8C00, #FFa500);
+  box-shadow: 0 0 30px rgba(255, 107, 0, 0.4);
+  transform: scale(1.02);
+}
+
+/* Input styling */
+input, textarea {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 107, 0, 0.3);
+  color: white;
+  transition: all 0.3s ease;
+}
+
+input:focus, textarea:focus {
+  border-color: rgba(255, 107, 0, 0.6);
+  box-shadow: 0 0 10px rgba(255, 107, 0, 0.2);
+  outline: none;
+}
