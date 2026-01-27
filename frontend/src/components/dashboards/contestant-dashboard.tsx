@@ -60,8 +60,6 @@ function latest<T extends { submitted_at: string }>(entries: T[]): T | null {
     return bDate - aDate;
   })[0];
 }
-  })[0];
-}
 
 export function ContestantDashboard() {
   const router = useRouter();
