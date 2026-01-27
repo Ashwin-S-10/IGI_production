@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { MissionButton } from "@/components/ui/button";
-import { getRoundQuestions } from "@project/shared/src";
+import { getRoundQuestions } from "@project/shared";
 import { useSubmissionsRound1, useTeams } from "@/lib/firestore/hooks";
 import type { SubmissionRound1, Team } from "@/lib/firestore/models";
 
