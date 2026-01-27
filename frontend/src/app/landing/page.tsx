@@ -97,19 +97,6 @@ export default function LandingPage() {
             Scroll or Click to Continue
           </button>
         </div>
-
-        {/* Scroll indicator */}
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-10 animate-bounce">
-          <button
-            onClick={scrollToConsole}
-            className="text-white/50 hover:text-white transition-colors"
-            aria-label="Scroll down"
-          >
-            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-            </svg>
-          </button>
-        </div>
       </section>
 
       {/* ==================== SECTION 2: CONSOLE WITH VIDEO BG ==================== */}
