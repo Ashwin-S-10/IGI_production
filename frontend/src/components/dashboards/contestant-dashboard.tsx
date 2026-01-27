@@ -90,15 +90,17 @@ export function ContestantDashboard() {
     return () => clearInterval(interval);
   }, []);
 
+  type TeamCandidate = (typeof teams)[number];
+  
   const team = useMemo(() => {
     if (!user) return undefined;
     if (user.teamId) {
-      const direct = teams.find((candidate) => candidate.id === user.teamId);
+      const direct = teams.find((candidate: TeamCandidate) => candidate.id === user.teamId);
       if (direct) return direct;
     }
     const email = user.email.toLowerCase();
-    return teams.find((candidate) =>
-      candidate.members?.some((member) => member.toLowerCase() === email),
+    return teams.find((candidate: TeamCandidate) =>
+      candidate.members?.some((member: string) => member.toLowerCase() === email),
     );
   }, [teams, user]);
   const { submissions: round1Submissions } = useSubmissionsRound1(team?.id);
