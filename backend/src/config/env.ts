@@ -37,17 +37,6 @@ export const env = {
 };
 
 export default env;
-// Load environment variables FIRST, before any other imports
-import dotenv from 'dotenv';
-
-const result = dotenv.config();
-if (result.error) {
-  console.error('❌ Error loading .env file:', result.error);
-} else {
-  console.log('✅ .env file loaded');
-}
-
-// Export environment check
 export function checkEnvironment() {
   console.log('🔍 Environment Check:');
   console.log('  - GEMINI_API_KEY:', process.env.GEMINI_API_KEY ? 'Set' : '❌ NOT SET');

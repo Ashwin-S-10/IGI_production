@@ -4,7 +4,7 @@
   "description": "IGI Contest Backend API",
   "main": "dist/server.js",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "tsx src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
     "lint": "eslint src"
@@ -27,5 +27,8 @@
     "@types/node": "^20",
     "tsx": "^4.19.0",
     "typescript": "^5"
+  },
+  "engines": {
+    "node": "20.x"
   }
 }
