@@ -258,8 +258,8 @@ export function AdminDashboard() {
     const normalizeRound1 = round1Submissions.map((submission: SubmissionRound1) => ({
       id: submission.id,
       round: "round1" as const,
-      teamId: submission.team_id,
-      submittedAt: toDate(submission.submitted_at),
+      teamId: submission.teamId,
+      submittedAt: submission.submittedAt,
       scoreLabel:
         typeof submission.score === "number" ? `Score ${submission.score.toFixed(1)}/10` : "Score pending",
     }));
@@ -267,11 +267,11 @@ export function AdminDashboard() {
     const normalizeRound2 = round2Submissions.map((submission: SubmissionRound2) => ({
       id: submission.id,
       round: "round2" as const,
-      teamId: submission.team_id,
-      submittedAt: toDate(submission.submitted_at),
+      teamId: submission.teamId,
+      submittedAt: submission.submittedAt,
       scoreLabel:
-        typeof submission.total_score === "number"
-          ? `Score ${submission.total_score.toFixed(1)}/10`
+        typeof submission.totalScore === "number"
+          ? `Score ${submission.totalScore.toFixed(1)}/10`
           : "Score pending",
     }));
 
