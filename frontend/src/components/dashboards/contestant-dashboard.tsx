@@ -116,7 +116,7 @@ export function ContestantDashboard() {
 
   const roundLookup = useMemo(
     () =>
-      rounds.reduce<RoundLookup>((acc: RoundLookup, roundEntry) => {
+      rounds.reduce<RoundLookup>((acc: RoundLookup, roundEntry: Round) => {
         acc[roundEntry.id] = roundEntry;
         return acc;
       }, {}),

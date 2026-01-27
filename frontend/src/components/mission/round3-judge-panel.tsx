@@ -59,11 +59,12 @@ export function Round3JudgePanel() {
   const [judgeState, setJudgeState] = useState<"idle" | "loading">("idle");
   const [alert, setAlert] = useState<JudgeAlert>({ type: "idle" });
 
+  type SupabaseTeam = (typeof teams)[number];
   type TeamLookup = Record<string, Team>;
 
   const teamLookup = useMemo(
     () =>
-      teams.reduce<TeamLookup>((acc: TeamLookup, supabaseTeam) => {
+      teams.reduce<TeamLookup>((acc: TeamLookup, supabaseTeam: SupabaseTeam) => {
         // Convert Supabase team to expected Team type
         const team: Team = {
           id: supabaseTeam.id,
@@ -83,7 +84,7 @@ export function Round3JudgePanel() {
 
   const questionLookup = useMemo(
     () =>
-      questions.reduce<QuestionLookupType>((acc: QuestionLookupType, question) => {
+      questions.reduce<QuestionLookupType>((acc: QuestionLookupType, question: Round3Question) => {
         acc[question.id] = question;
         return acc;
       }, {}),
@@ -94,7 +95,7 @@ export function Round3JudgePanel() {
 
   const submissionsById = useMemo(
     () =>
-      submissions.reduce<SubmissionsLookup>((acc: SubmissionsLookup, submission) => {
+      submissions.reduce<SubmissionsLookup>((acc: SubmissionsLookup, submission: Round3Submission) => {
         acc[submission.id] = submission;
         return acc;
       }, {}),

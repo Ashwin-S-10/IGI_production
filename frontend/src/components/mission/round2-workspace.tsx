@@ -202,7 +202,8 @@ export function Round2Workspace() {
       return;
     }
 
-    const baseDraft: Round2DraftState = activePrompts.reduce((acc, prompt) => {
+    type Prompt = (typeof activePrompts)[number];
+    const baseDraft: Round2DraftState = activePrompts.reduce((acc: Round2DraftState, prompt: Prompt) => {
       acc[prompt.id] = { description: "", line: "" };
       return acc;
     }, {} as Round2DraftState);

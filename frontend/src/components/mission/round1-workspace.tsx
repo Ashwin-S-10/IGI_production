@@ -121,7 +121,7 @@ export function Round1Workspace({ roundId }: Round1WorkspaceProps) {
 
   // Final submission after all questions
   const handleFinalSubmit = useCallback(async () => {
-    const totalScore = Object.values(scores).reduce((sum, s) => sum + s.score, 0);
+    const totalScore = Object.values(scores).reduce((sum: number, s: QuestionScore) => sum + s.score, 0);
     const answeredCount = Object.keys(scores).length;
     
     if (answeredCount < questions.length) {
