@@ -230,10 +230,13 @@ export function AdminDashboard() {
 
   const roundLookup = useMemo(
     () =>
-      rounds.reduce<Record<string, (typeof rounds)[number]>>((acc, round) => {
-        acc[round.id] = round;
-        return acc;
-      }, {}),
+      rounds.reduce<Record<string, (typeof rounds)[number]>>(
+        (acc: Record<string, (typeof rounds)[number]>, round) => {
+          acc[round.id] = round;
+          return acc;
+        },
+        {}
+      ),
     [rounds],
   );
 

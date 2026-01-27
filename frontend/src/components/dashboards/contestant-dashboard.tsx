@@ -113,10 +113,13 @@ export function ContestantDashboard() {
 
   const roundLookup = useMemo(
     () =>
-      rounds.reduce<Record<string, (typeof rounds)[number]>>((acc, roundEntry) => {
-        acc[roundEntry.id] = roundEntry;
-        return acc;
-      }, {}),
+      rounds.reduce<Record<string, (typeof rounds)[number]>>(
+        (acc: Record<string, (typeof rounds)[number]>, roundEntry) => {
+          acc[roundEntry.id] = roundEntry;
+          return acc;
+        },
+        {}
+      ),
     [rounds],
   );
 
