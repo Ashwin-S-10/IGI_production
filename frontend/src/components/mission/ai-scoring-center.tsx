@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Activity, Brain, Play, Pause, RotateCcw, CheckCircle2, Clock, AlertTriangle, Zap } from "lucide-react";
 import { MissionButton } from "@/components/ui/button";
 import { useAIJobs, useSubmissionsRound1, useSubmissionsRound2 } from "@/lib/firestore/hooks";
+import type { AIJob } from "@/lib/supabase/models";
 
 export function AIScoringCenter() {
   const router = useRouter();
@@ -16,10 +17,10 @@ export function AIScoringCenter() {
 
   const jobStats = useMemo(() => {
     const total = jobs.length;
-    const running = jobs.filter(job => job.status === 'running').length;
-    const completed = jobs.filter(job => job.status === 'completed').length;
-    const failed = jobs.filter(job => job.status === 'failed').length;
-    const pending = jobs.filter(job => job.status === 'pending').length;
+    const running = jobs.filter((job: AIJob) => job.status === 'running').length;
+    const completed = jobs.filter((job: AIJob) => job.status === 'completed').length;
+    const failed = jobs.filter((job: AIJob) => job.status === 'failed').length;
+    const pending = jobs.filter((job: AIJob) => job.status === 'pending').length;
 
     return { total, running, completed, failed, pending };
   }, [jobs]);
@@ -35,7 +36,7 @@ export function AIScoringCenter() {
   }, [round1Submissions, round2Submissions]);
 
   const selectedJobData = useMemo(() => {
-    return jobs.find(job => job.id === selectedJob);
+    return jobs.find((job: AIJob) => job.id === selectedJob);
   }, [jobs, selectedJob]);
 
   const handleTriggerAI = async (type: 'round1' | 'round2' | 'batch') => {
