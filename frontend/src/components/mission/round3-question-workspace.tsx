@@ -360,7 +360,7 @@ export function Round3QuestionWorkspace({
               <p className="text-lg font-semibold text-white">{question?.title}:</p>
               
               {question?.prompt.split('\n').map((paragraph, idx) => (
-                <p key={idx} className={paragraph.startsWith('**') ? 'text-yellow-400 font-semibold' : ''}>
+                <p key={idx} className={paragraph.startsWith('**') ? 'text-[#FF6B00] font-semibold' : ''}>
                   {paragraph.replace(/\*\*/g, '').replace(/`([^`]+)`/g, (_, code) => code)}
                 </p>
               ))}
@@ -431,7 +431,6 @@ export function Round3QuestionWorkspace({
                         <div className="text-5xl font-bold text-[#FF6B00]">
                           {score}
                         </div>
-                        <div className="text-2xl text-white/50">/100</div>
                       </div>
                       {previousScore !== null && previousScore > 0 && (
                         <p className="text-sm text-gray-400 mt-2">

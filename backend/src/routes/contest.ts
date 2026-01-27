@@ -502,9 +502,9 @@ router.get('/round3/score', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Missing team_id or question_id' });
     }
 
-    // Map question_id to column name (e.g., round3_1 -> round3_q1_score)
+    // Map question_id to column name (e.g., round3_1 -> round3_1_score)
     const questionNumber = question_id.toString().split('_')[1];
-    const scoreColumn = `round3_q${questionNumber}_score`;
+    const scoreColumn = `round3_${questionNumber}_score`;
 
     const { data: teamData, error: teamError } = await supabaseAdmin
       .from('teams')
