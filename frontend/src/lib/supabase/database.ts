@@ -1,3 +1,4 @@
+
 import { supabase, isSupabaseConfigured } from './client'
 import type { Database } from './types'
 
@@ -10,6 +11,7 @@ type SubmissionRound2 = Tables['submissions_round2']['Row']
 type AIJob = Tables['ai_jobs']['Row']
 type Telecast = Tables['telecast']['Row']
 type TelecastViewer = Tables['telecast_viewers']['Row']
+type TeamUpdate = Database["public"]["Tables"]["teams"]["Update"];
 
 export class SupabaseDatabase {
   private client = supabase
@@ -75,7 +77,6 @@ export class SupabaseDatabase {
     return data
   }
 
-  type TeamUpdate = Database["public"]["Tables"]["teams"]["Update"];
   async updateTeam(id: string, updates: TeamUpdate): Promise<Team> {
     const { data, error } = await this.client
       .from('teams')
