@@ -68,6 +68,14 @@ export async function evaluateAnswerController(req: Request, res: Response): Pro
       return;
     }
 
+    if (error.status === 403 || error.message?.includes('403') || error.message?.includes('leaked')) {
+      res.status(502).json({
+        error: 'Service error',
+        message: 'Evaluation service temporarily unavailable. Please try again.'
+      });
+      return;
+    }
+
     // Generic error
     res.status(502).json({
       error: 'Service error',

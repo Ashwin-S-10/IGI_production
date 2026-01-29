@@ -225,21 +225,27 @@ Return ONLY valid JSON. No markdown. No extra text.
       const errorMessage = error.message || String(error);
       console.error(`[EvaluationService] Error on attempt ${attempt}:`, errorMessage);
       
-      // Check if it's a rate limit error
+      // Check if it's a rate limit or 403 forbidden error
       const isRateLimit = isRateLimitError(error) || 
                           errorMessage.includes('429') ||
                           errorMessage.includes('rate limit') ||
                           errorMessage.includes('quota');
       
-      if (isRateLimit && attempt < maxRetries) {
-        console.log(`[EvaluationService] Rate limit detected, switching to next API key...`);
+      const isForbidden = error.status === 403 ||
+                          errorMessage.includes('403') ||
+                          errorMessage.includes('Forbidden') ||
+                          errorMessage.includes('leaked') ||
+                          errorMessage.includes('API key');
+      
+      if ((isRateLimit || isForbidden) && attempt < maxRetries) {
+        console.log(`[EvaluationService] ${isForbidden ? '403 Forbidden' : 'Rate limit'} detected, switching to next API key...`);
         if (reinitializeWithNextKey()) {
-          console.log(`[EvaluationService] Retrying with fallback key...`);
+          console.log(`[EvaluationService] Retrying with fallback key (attempt ${attempt + 1}/${maxRetries})...`);
           continue; // Retry with next key
         }
       }
       
-      // If not rate limit or no more keys, throw error
+      // If not recoverable or no more keys, throw error
       console.error('[EvaluationService] Full error:', error);
       throw error;
     }
