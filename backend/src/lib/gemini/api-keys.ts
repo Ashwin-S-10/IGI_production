@@ -3,15 +3,12 @@
  * Handles multiple API keys and automatic failover on rate limiting
  */
 
-// API Keys priority order
+// API Keys priority order - ALL FROM ENVIRONMENT VARIABLES
 const API_KEYS = [
-  process.env.GEMINI_API_KEY || '',           // Key 1: Primary from env
-  process.env.GEMINI_API_KEY_2 || '',         // Key 2: Secondary from env
-  'AIzaSyBmg3zQR7ZI7xLaNVci_tMXjnMNStJt4wQ', // Key 3: New fallback
-  'AIzaSyABGk9Oqt-Rv9pPtbzxFeFmctcXtkqGMOU', // Key 4: Fallback
-  'AIzaSyAR_nsewHf5a7an28DPLYSH8iYXvHJY4gI', // Key 5: Fallback
-  'AIzaSyD91QKyP9JJH2pZDQjcO8iKcixq_nuZ4Ac',
-  'AIzaSyAYLEYiNXcaevFaJCmsqPjaPw0Zb1LgHYk'  // Key 6: Fallback
+  process.env.GEMINI_API_KEY || '',           // Key 1: Primary
+  process.env.GEMINI_API_KEY_2 || '',         // Key 2: Fallback 1
+  process.env.GEMINI_API_KEY_3 || '',         // Key 3: Fallback 2
+  process.env.GOOGLE_API_KEY || '',           // Key 4: Google API fallback
 ].filter(key => key.length > 0); // Remove empty keys
 
 let currentKeyIndex = 0;
