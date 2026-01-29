@@ -8,7 +8,11 @@ const API_KEYS = [
   process.env.GEMINI_API_KEY || '',           // Key 1: Primary
   process.env.GEMINI_API_KEY_2 || '',         // Key 2: Fallback 1
   process.env.GEMINI_API_KEY_3 || '',         // Key 3: Fallback 2
-  process.env.GOOGLE_API_KEY || '',           // Key 4: Google API fallback
+  process.env.GEMINI_API_KEY_4 || '',         // Key 4: Fallback 3
+  process.env.GEMINI_API_KEY_5 || '',         // Key 5: Fallback 4
+  process.env.GEMINI_API_KEY_6 || '',         // Key 6: Fallback 5
+  process.env.GEMINI_API_KEY_7 || '',         // Key 7: Fallback 6
+  process.env.GOOGLE_API_KEY || '',           // Key 8: Google API fallback
 ].filter(key => key.length > 0); // Remove empty keys
 
 let currentKeyIndex = 0;
