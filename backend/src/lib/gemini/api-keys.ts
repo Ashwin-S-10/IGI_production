@@ -55,19 +55,21 @@ export function getApiKeyCount(): number {
 }
 
 /**
- * Check if the error is a rate limit error
+ * Check if the error is a rate limit or forbidden error
  */
 export function isRateLimitError(error: any): boolean {
   if (typeof error === 'object' && error !== null) {
     // Check HTTP status code
-    if (error.status === 429) return true;
+    if (error.status === 429 || error.status === 403) return true;
     
     // Check error message
     const message = error.message || error.error?.message || '';
     if (typeof message === 'string') {
       return message.toLowerCase().includes('rate limit') ||
              message.toLowerCase().includes('quota') ||
-             message.toLowerCase().includes('429');
+             message.toLowerCase().includes('429') ||
+             message.toLowerCase().includes('403') ||
+             message.toLowerCase().includes('forbidden');
     }
   }
   return false;
@@ -104,16 +106,16 @@ export async function callGeminiWithFallback(
         return response;
       }
 
-      // Check if it's a rate limit error
-      if (response.status === 429) {
-        console.log(`[Gemini API] Rate limit hit on key #${currentKeyIndex + 1}`);
+      // Check if it's a rate limit or 403 forbidden error
+      if (response.status === 429 || response.status === 403) {
+        console.log(`[Gemini API] ${response.status === 403 ? '403 Forbidden' : 'Rate limit'} hit on key #${currentKeyIndex + 1}`);
         const errorText = await response.text();
         console.log(`[Gemini API] Error details:`, errorText);
         lastError = { status: response.status, message: errorText };
         
         // Try next key
         if (!switchToNextApiKey()) {
-          throw new Error('All API keys rate limited');
+          throw new Error(`All API keys exhausted (last error: ${response.status})`);
         }
         continue;
       }
