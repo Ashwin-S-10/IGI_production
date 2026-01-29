@@ -133,7 +133,7 @@ export class SupabaseDatabase {
       
       const { data, error } = await this.client
         .from('rounds')
-        .update(updateData)
+        .update(updateData as any)
         .eq('id', id)
         .select()
         .single()

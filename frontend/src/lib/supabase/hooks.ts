@@ -8,48 +8,73 @@ import type { Team, Round, SubmissionRound1, SubmissionRound2, AIJob, Telecast }
 export function useTeams() {
   const query = useQuery({
     queryKey: ['teams'],
-    queryFn: () => db.getTeams(),
-    staleTime: 30000, // 30 seconds
-  })
-  
+    queryFn: async () => {
+      const res = await fetch('/api/teams');
+      if (!res.ok) throw new Error('Failed to fetch teams');
+      const { teams } = await res.json();
+      return teams;
+    },
+    staleTime: 30000,
+  });
   return {
     teams: query.data || [],
     isLoading: query.isLoading,
     error: query.error,
     refetch: query.refetch,
-  }
+  };
 }
 
 export function useTeam(id: string) {
   return useQuery({
     queryKey: ['teams', id],
-    queryFn: () => db.getTeam(id),
+    queryFn: async () => {
+      if (!id) return null;
+      const res = await fetch(`/api/teams/${id}`);
+      if (!res.ok) throw new Error('Failed to fetch team');
+      const { team } = await res.json();
+      return team;
+    },
     enabled: !!id,
-  })
+  });
 }
 
 export function useCreateTeam() {
-  const queryClient = useQueryClient()
-  
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (team: Parameters<typeof db.createTeam>[0]) => db.createTeam(team),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['teams'] })
+    mutationFn: async (team: Omit<Team, 'id'>) => {
+      const res = await fetch('/api/teams', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(team),
+      });
+      if (!res.ok) throw new Error('Failed to create team');
+      const { team: created } = await res.json();
+      return created;
     },
-  })
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['teams'] });
+    },
+  });
 }
 
 export function useUpdateTeam() {
-  const queryClient = useQueryClient()
-  
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, updates }: { id: string; updates: Parameters<typeof db.updateTeam>[1] }) => 
-      db.updateTeam(id, updates),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['teams'] })
-      queryClient.invalidateQueries({ queryKey: ['teams', data.id] })
+    mutationFn: async ({ id, updates }: { id: string; updates: Partial<Team> }) => {
+      const res = await fetch(`/api/teams/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+      if (!res.ok) throw new Error('Failed to update team');
+      const { team: updated } = await res.json();
+      return updated;
     },
-  })
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['teams'] });
+      if (data?.id) queryClient.invalidateQueries({ queryKey: ['teams', data.id] });
+    },
+  });
 }
 
 // Rounds hooks

@@ -228,9 +228,12 @@ export function AdminDashboard() {
     return roundsState.find(r => r.id === roundId);
   };
 
+  type Round = (typeof rounds)[number];
+  type RoundLookup = Record<string, Round>;
+
   const roundLookup = useMemo(
     () =>
-      rounds.reduce<Record<string, (typeof rounds)[number]>>((acc, round) => {
+      rounds.reduce<RoundLookup>((acc: RoundLookup, round: Round) => {
         acc[round.id] = round;
         return acc;
       }, {}),
@@ -252,20 +255,23 @@ export function AdminDashboard() {
   };
 
   const recentActivity = useMemo(() => {
-    const normalizeRound1 = round1Submissions.map((submission) => ({
+    type Round1Sub = (typeof round1Submissions)[number];
+    type Round2Sub = (typeof round2Submissions)[number];
+    
+    const normalizeRound1 = round1Submissions.map((submission: Round1Sub) => ({
       id: submission.id,
       round: "round1" as const,
       teamId: submission.team_id,
-      submittedAt: toDate(submission.submitted_at),
+      submittedAt: new Date(submission.submitted_at),
       scoreLabel:
         typeof submission.score === "number" ? `Score ${submission.score.toFixed(1)}/10` : "Score pending",
     }));
 
-    const normalizeRound2 = round2Submissions.map((submission) => ({
+    const normalizeRound2 = round2Submissions.map((submission: Round2Sub) => ({
       id: submission.id,
       round: "round2" as const,
       teamId: submission.team_id,
-      submittedAt: toDate(submission.submitted_at),
+      submittedAt: new Date(submission.submitted_at),
       scoreLabel:
         typeof submission.total_score === "number"
           ? `Score ${submission.total_score.toFixed(1)}/10`

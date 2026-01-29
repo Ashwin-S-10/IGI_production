@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Activity, Brain, Play, Pause, RotateCcw, CheckCircle2, Clock, AlertTriangle, Zap } from "lucide-react";
 import { MissionButton } from "@/components/ui/button";
 import { useAIJobs, useSubmissionsRound1, useSubmissionsRound2 } from "@/lib/firestore/hooks";
+import type { AIJob, SubmissionRound1, SubmissionRound2 } from "@/lib/supabase/models";
 
 export function AIScoringCenter() {
   const router = useRouter();
@@ -16,18 +17,18 @@ export function AIScoringCenter() {
 
   const jobStats = useMemo(() => {
     const total = jobs.length;
-    const running = jobs.filter(job => job.status === 'running').length;
-    const completed = jobs.filter(job => job.status === 'completed').length;
-    const failed = jobs.filter(job => job.status === 'failed').length;
-    const pending = jobs.filter(job => job.status === 'pending').length;
+    const running = jobs.filter((job: AIJob) => job.status === 'running').length;
+    const completed = jobs.filter((job: AIJob) => job.status === 'completed').length;
+    const failed = jobs.filter((job: AIJob) => job.status === 'failed').length;
+    const pending = jobs.filter((job: AIJob) => job.status === 'pending').length;
 
     return { total, running, completed, failed, pending };
   }, [jobs]);
 
   const scoringStats = useMemo(() => {
     const totalSubmissions = round1Submissions.length + round2Submissions.length;
-    const scoredR1 = round1Submissions.filter(sub => typeof sub.score === 'number').length;
-    const scoredR2 = round2Submissions.filter(sub => typeof sub.total_score === 'number').length;
+    const scoredR1 = round1Submissions.filter((sub: SubmissionRound1) => typeof sub.score === 'number').length;
+    const scoredR2 = round2Submissions.filter((sub: SubmissionRound2) => typeof sub.total_score === 'number').length;
     const totalScored = scoredR1 + scoredR2;
     const pendingScoring = totalSubmissions - totalScored;
 
@@ -35,7 +36,7 @@ export function AIScoringCenter() {
   }, [round1Submissions, round2Submissions]);
 
   const selectedJobData = useMemo(() => {
-    return jobs.find(job => job.id === selectedJob);
+    return jobs.find((job: AIJob) => job.id === selectedJob);
   }, [jobs, selectedJob]);
 
   const handleTriggerAI = async (type: 'round1' | 'round2' | 'batch') => {
@@ -65,10 +66,12 @@ export function AIScoringCenter() {
     }
   };
 
-  const formatDate = (date: any) => {
+  const formatDate = (date: Date | string | { toDate?: () => Date } | null | undefined) => {
     if (!date) return 'Unknown';
-    const d = date instanceof Date ? date : (typeof date === 'string' ? new Date(date) : (date.toDate?.() || new Date(date)));
-    return d.toLocaleString();
+    if (date instanceof Date) return date.toLocaleString();
+    if (typeof date === 'string') return new Date(date).toLocaleString();
+    if (typeof date === 'object' && date.toDate) return date.toDate().toLocaleString();
+    return new Date().toLocaleString();
   };
 
   const getStatusIcon = (status: string) => {
@@ -207,7 +210,7 @@ export function AIScoringCenter() {
             Job Queue ({jobs.length})
           </h3>
           <div className="space-y-4 max-h-96 overflow-y-auto">
-            {jobs.map((job) => (
+            {jobs.map((job: AIJob) => (
               <article
                 key={job.id}
                 className={`border p-4 rounded-2xl cursor-pointer transition-all duration-300 ${

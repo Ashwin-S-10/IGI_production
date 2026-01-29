@@ -38,35 +38,46 @@ export function Round1ReviewPanel() {
   const { teams } = useTeams();
   const questions = useMemo(() => getRoundQuestions("round1"), []);
 
+  type SupabaseTeam = (typeof teams)[number];
+  type TeamLookup = Record<string, Team>;
+
   const teamLookup = useMemo(
-    () => teams.reduce<Record<string, Team>>((acc, supabaseTeam) => {
-      // Convert Supabase team to expected Team type
-      const team: Team = {
-        id: supabaseTeam.id,
-        name: supabaseTeam.name,
-        members: supabaseTeam.members || [],
-        createdAt: new Date(supabaseTeam.created_at),
-        squad: supabaseTeam.squad as 'FOSS-1' | 'FOSS-2' | undefined,
-        round1Score: supabaseTeam.round1_score || undefined,
-      };
-      acc[team.id] = team;
-      return acc;
-    }, {}),
+    () => {
+      const result: TeamLookup = {};
+      teams.forEach((supabaseTeam: SupabaseTeam) => {
+        // Convert Supabase team to expected Team type
+        const team: Team = {
+          id: supabaseTeam.id,
+          name: supabaseTeam.name,
+          members: supabaseTeam.members || [],
+          createdAt: new Date(supabaseTeam.created_at),
+          squad: supabaseTeam.squad as 'FOSS-1' | 'FOSS-2' | undefined,
+          round1Score: supabaseTeam.round1_score || undefined,
+        };
+        result[team.id] = team;
+      });
+      return result;
+    },
     [teams],
   );
 
+  type Question = (typeof questions)[number];
+  type QuestionLookup = Record<string, Question>;
+
   const questionLookup = useMemo(
-    () => questions.reduce<Record<string, (typeof questions)[number]>>((acc, question) => {
+    () => questions.reduce<QuestionLookup>((acc: QuestionLookup, question: Question) => {
       acc[question.id] = question;
       return acc;
     }, {}),
     [questions],
   );
 
+  type SupabaseSubmission = (typeof submissions)[number];
+
   const enrichedSubmissions = useMemo<SubmissionWithMeta[]>(
     () =>
       submissions
-        .map((supabaseSubmission) => {
+        .map((supabaseSubmission: SupabaseSubmission) => {
           // Convert Supabase submission to expected SubmissionRound1 type
           const submission: SubmissionRound1 = {
             id: supabaseSubmission.id,
@@ -93,7 +104,7 @@ export function Round1ReviewPanel() {
             submittedAtDate: submission.submittedAt,
           };
         })
-        .sort((a, b) => (b.submittedAtDate?.getTime() ?? 0) - (a.submittedAtDate?.getTime() ?? 0)),
+        .sort((a: SubmissionWithMeta, b: SubmissionWithMeta) => (b.submittedAtDate?.getTime() ?? 0) - (a.submittedAtDate?.getTime() ?? 0)),
     [submissions],
   );
 

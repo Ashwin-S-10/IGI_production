@@ -185,7 +185,7 @@ export function Round2WorkspaceNew({ roundId }: Round2WorkspaceNewProps) {
 
     try {
       // Calculate total score (0 if no questions answered)
-      const totalScore = Object.values(scores).reduce((sum, item) => sum + item.score, 0);
+      const totalScore = Object.values(scores).reduce((sum: number, item: EvaluationResult) => sum + item.score, 0);
       
       // Get current timestamp
       const submittedAt = new Date().toISOString();

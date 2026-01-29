@@ -7,6 +7,17 @@ import { MissionButton } from "@/components/ui/button";
 import { useAuth } from "@/components/providers/auth-provider";
 import { cn } from "@/lib/utils";
 import { getQuestionDetails, type RoundQuestion } from "@/../../shared/src/index";
+import dynamic from "next/dynamic";
+
+// Dynamically import Monaco Editor to prevent SSR issues
+const MonacoEditor = dynamic(() => import("./monaco-editor"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-96 bg-black border border-[#FF6B00]/30 rounded flex items-center justify-center">
+      <Loader2 className="w-8 h-8 text-[#FF6B00] animate-spin" />
+    </div>
+  ),
+});
 
 interface Round3QuestionWorkspaceProps {
   questionId: string;
@@ -18,6 +29,7 @@ const LANGUAGES = [
   { value: "java", label: "Java" },
   { value: "cpp", label: "C++" },
   { value: "c", label: "C" },
+  { value: "javascript", label: "JavaScript" },
 ] as const;
 
 type Language = typeof LANGUAGES[number]["value"];
@@ -389,18 +401,11 @@ export function Round3QuestionWorkspace({
           </div>
 
           {/* Code Editor */}
-          <textarea
+          <MonacoEditor
             value={codeInput}
-            onChange={(e) => setCodeInput(e.target.value)}
+            onChange={setCodeInput}
+            language={language}
             disabled={submitted || isExpired}
-            placeholder="Write your solution here (code or algorithm explanation)..."
-            className={cn(
-              "w-full h-96 bg-black border border-[#FF6B00]/30 text-white",
-              "font-mono text-sm p-4 rounded resize-y",
-              "focus:outline-none focus:border-[#FF6B00] focus:ring-1 focus:ring-[#FF6B00]/50",
-              "placeholder:text-gray-600",
-              "disabled:opacity-50 disabled:cursor-not-allowed"
-            )}
           />
 
           {/* Submission Status */}

@@ -51,8 +51,10 @@ export function MissionPasswordsCenter() {
   const stats = useMemo(() => {
     const totalPasswords = passwords.length;
     const activePasswords = passwords.filter(p => p.isActive).length;
-    const totalUsage = passwords.reduce((sum, p) => sum + p.usageCount, 0);
-    const qualifiedTeams = teams.filter(t => typeof t.round1_score === 'number' && t.round1_score >= 7).length;
+    type Password = (typeof passwords)[number];
+    type TeamType = (typeof teams)[number];
+    const totalUsage = passwords.reduce((sum: number, p: Password) => sum + p.usageCount, 0);
+    const qualifiedTeams = teams.filter((t: TeamType) => typeof t.round1_score === 'number' && t.round1_score >= 7).length;
 
     return { totalPasswords, activePasswords, totalUsage, qualifiedTeams };
   }, [passwords, teams]);
@@ -166,7 +168,7 @@ export function MissionPasswordsCenter() {
           <div>
             <label className="block text-sm font-bold text-white mb-3">Target Round</label>
             <div className="space-y-2">
-              {rounds.map((round) => (
+              {rounds.map((round: (typeof rounds)[number]) => (
                 <label key={round.id} className="flex items-center gap-3 cursor-pointer">
                   <input
                     type="radio"

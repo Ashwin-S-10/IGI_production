@@ -52,11 +52,11 @@ function toDate(value: unknown): Date | null {
   return null;
 }
 
-function latest<T extends { submitted_at?: string }>(entries: T[]): T | null {
+function latest<T extends { submitted_at: string }>(entries: T[]): T | null {
   if (!entries.length) return null;
-  return [...entries].sort((a, b) => {
-    const aDate = a.submitted_at ? new Date(a.submitted_at).getTime() : 0;
-    const bDate = b.submitted_at ? new Date(b.submitted_at).getTime() : 0;
+  return [...entries].sort((a: T, b: T) => {
+    const aDate = new Date(a.submitted_at).getTime();
+    const bDate = new Date(b.submitted_at).getTime();
     return bDate - aDate;
   })[0];
 }
@@ -90,15 +90,17 @@ export function ContestantDashboard() {
     return () => clearInterval(interval);
   }, []);
 
+  type TeamCandidate = (typeof teams)[number];
+  
   const team = useMemo(() => {
     if (!user) return undefined;
     if (user.teamId) {
-      const direct = teams.find((candidate) => candidate.id === user.teamId);
+      const direct = teams.find((candidate: TeamCandidate) => candidate.id === user.teamId);
       if (direct) return direct;
     }
     const email = user.email.toLowerCase();
-    return teams.find((candidate) =>
-      candidate.members?.some((member) => member.toLowerCase() === email),
+    return teams.find((candidate: TeamCandidate) =>
+      candidate.members?.some((member: string) => member.toLowerCase() === email),
     );
   }, [teams, user]);
   const { submissions: round1Submissions } = useSubmissionsRound1(team?.id);
@@ -111,9 +113,12 @@ export function ContestantDashboard() {
     setTelecastCompleted(completed);
   }, [setTelecastCompleted]);
 
+  type Round = (typeof rounds)[number];
+  type RoundLookup = Record<string, Round>;
+
   const roundLookup = useMemo(
     () =>
-      rounds.reduce<Record<string, (typeof rounds)[number]>>((acc, roundEntry) => {
+      rounds.reduce<RoundLookup>((acc: RoundLookup, roundEntry: Round) => {
         acc[roundEntry.id] = roundEntry;
         return acc;
       }, {}),
@@ -194,8 +199,11 @@ export function ContestantDashboard() {
     return () => clearInterval(interval);
   }, [user?.teamId]);
 
-  const latestRound1 = latest(round1Submissions);
-  const latestRound2 = latest(round2Submissions);
+  // Submissions now use raw Supabase types (snake_case)
+  type Round1Sub = (typeof round1Submissions)[number];
+  type Round2Sub = (typeof round2Submissions)[number];
+  const latestRound1: Round1Sub | null = latest(round1Submissions);
+  const latestRound2: Round2Sub | null = latest(round2Submissions);
 
   // Use Supabase teamData if available, fall back to Firestore team data
   const round1Score = teamData?.r1_score ?? latestRound1?.score ?? team?.round1_score ?? null;

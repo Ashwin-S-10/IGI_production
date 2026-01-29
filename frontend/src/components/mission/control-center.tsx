@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AlertTriangle, CheckCircle2, LoaderCircle } from "lucide-react";
 import { MissionButton } from "@/components/ui/button";
+import type { AIJob } from "@/lib/supabase/models";
 import {
   useAIJobs,
   useMissionTasks,
@@ -298,8 +299,9 @@ export function ControlCenter() {
   const { submissions: submissionsRound1 } = useSubmissionsRound1();
   const { submissions: submissionsRound2 } = useSubmissionsRound2();
   const { jobs } = useAIJobs();
-  const runningJobs = useMemo(() => jobs.filter((job) => job.status === "running").length, [jobs]);
-  const activeRound = useMemo(() => rounds.find((round) => round.status === "active")?.name ?? "Pending", [rounds]);
+  type Round = (typeof rounds)[number];
+  const runningJobs = useMemo(() => jobs.filter((job: AIJob) => job.status === "running").length, [jobs]);
+  const activeRound = useMemo(() => rounds.find((round: Round) => round.status === "active")?.name ?? "Pending", [rounds]);
   const metrics = useMemo(
     () => [
       { label: "Active Round", value: activeRound },

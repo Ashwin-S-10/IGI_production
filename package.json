@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "pwsh -File start-dev.ps1",
     "dev:linux": "./start-dev.sh",
+    "build": "cd frontend && npm run build",
     "backend:dev": "cd backend && npm run dev",
     "frontend:dev": "cd frontend && npm run dev",
     "backend:build": "cd backend && npm run build",
