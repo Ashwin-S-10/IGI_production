@@ -18,6 +18,7 @@ import {
   Phone,
   Key,
   X,
+  FileDown,
 } from "lucide-react";
 import { MissionButton } from "@/components/ui/button";
 import { useTeams, useSubmissionsRound1, useSubmissionsRound2 } from "@/lib/firestore/hooks";
@@ -51,6 +52,10 @@ export function TeamManagementCenter() {
     type: "success" | "error";
     message: string;
   } | null>(null);
+
+  // Excel download state
+  const [isDownloadingExcel, setIsDownloadingExcel] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   // search + copy state (prod)
   const [searchTerm, setSearchTerm] = useState("");
@@ -132,6 +137,50 @@ export function TeamManagementCenter() {
     }
   };
 
+  // Excel download handler
+  const handleDownloadExcel = async () => {
+    setIsDownloadingExcel(true);
+    setDownloadError(null);
+    try {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+      const response = await fetch(`${API_BASE_URL}/api/teams/admin/export-excel`);
+
+      if (!response.ok) {
+        throw new Error(`Failed to download Excel file: ${response.statusText}`);
+      }
+
+      // Get the filename from the Content-Disposition header
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = 'teams.xlsx';
+      if (contentDisposition) {
+        const matches = contentDisposition.match(/filename="?([^"]+)"?/);
+        if (matches && matches[1]) {
+          filename = matches[1];
+        }
+      }
+
+      // Convert response to blob
+      const blob = await response.blob();
+
+      // Create a temporary download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+
+      // Cleanup
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      setDownloadError(err.message || 'Failed to download Excel file');
+      console.error("Error downloading Excel:", err);
+    } finally {
+      setIsDownloadingExcel(false);
+    }
+  };
+
   // filtered teams (prod)
   const filteredTeams = useMemo(() => {
     return fetchedTeams.filter(
@@ -164,6 +213,18 @@ export function TeamManagementCenter() {
         </div>
       )}
 
+      {downloadError && (
+        <div className="border border-red-500/50 bg-red-500/10 p-4 rounded-2xl">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-red-500" />
+            <div>
+              <p className="font-semibold">Download Failed</p>
+              <p className="text-sm text-red-400/80">{downloadError}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="border border-[#FF6B00]/20 p-8 rounded-3xl">
         <header className="flex flex-wrap justify-between gap-4">
           <div>
@@ -181,6 +242,14 @@ export function TeamManagementCenter() {
             >
               <RefreshCw className={`w-5 h-5 ${isUpdatingLeaderboard ? "animate-spin" : ""}`} />
               Update Leaderboard
+            </MissionButton>
+            <MissionButton
+              variant="primary"
+              onClick={handleDownloadExcel}
+              disabled={isDownloadingExcel || fetchedTeams.length === 0}
+            >
+              <FileDown className={`w-5 h-5 ${isDownloadingExcel ? "animate-pulse" : ""}`} />
+              Download Teams (Excel)
             </MissionButton>
             <MissionButton variant="secondary" onClick={() => router.back()}>
               Return to Console
