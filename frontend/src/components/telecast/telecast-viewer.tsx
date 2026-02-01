@@ -10,12 +10,6 @@ export function TelecastViewer() {
   const containerRef = useRef<HTMLDivElement>(null);
   const playedRef = useRef<Set<number>>(new Set());
 
-  // Debug logging
-  useEffect(() => {
-    console.log('🔍 Telecast viewer - activeTelecast:', activeTelecast);
-    console.log('🔍 Telecast viewer - showVideo:', showVideo);
-  }, [activeTelecast, showVideo]);
-
   // Disable context menu, keyboard shortcuts, and mouse interactions
   useEffect(() => {
     if (showVideo) {
@@ -80,14 +74,12 @@ export function TelecastViewer() {
     // Small delay to ensure DOM is ready
     const timer = setTimeout(() => {
       if (containerRef.current && videoRef.current) {
-        console.log('🎬 Starting telecast video:', activeTelecast?.videoPath);
         
         // Try to play video first
         if (videoRef.current) {
           videoRef.current.muted = false; // Don't mute initially
           videoRef.current.play()
             .then(() => {
-              console.log('✅ Video playing successfully');
               // Then try fullscreen
               if (containerRef.current) {
                 containerRef.current.requestFullscreen()
@@ -101,7 +93,6 @@ export function TelecastViewer() {
                 videoRef.current.muted = true;
                 videoRef.current.play()
                   .then(() => {
-                    console.log('✅ Muted video playing');
                     // Try fullscreen
                     if (containerRef.current) {
                       containerRef.current.requestFullscreen()

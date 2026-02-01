@@ -1,11 +1,6 @@
 // API Client for communicating with the backend
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-// Debug: Log the API base URL (remove in production)
-if (typeof window !== 'undefined') {
-  console.log('[API Client] Using API_BASE_URL:', API_BASE_URL);
-}
-
 // Session management
 let sessionId: string | null = null;
 
@@ -35,9 +30,6 @@ async function apiCall<T = any>(
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
   
-  // Debug: Log the full URL being called
-  console.log('[API Client] Calling:', url);
-  
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string> || {}),
@@ -54,8 +46,25 @@ async function apiCall<T = any>(
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-    throw new Error(error.error || `HTTP ${response.status}`);
+    const errorText = await response.text();
+    let errorMessage = `HTTP ${response.status}`;
+    
+    try {
+      const errorJson = JSON.parse(errorText);
+      errorMessage = errorJson.error || errorJson.message || errorMessage;
+    } catch {
+      // If not JSON, use the text response
+      errorMessage = errorText || errorMessage;
+    }
+    
+    console.error(`[API Error] ${options.method || 'GET'} ${url}:`, response.status, errorMessage);
+    
+    // Show alert for authentication errors
+    if (response.status === 401) {
+      alert('Session expired. Please log in again.');
+    }
+    
+    throw new Error(errorMessage);
   }
 
   return response.json();
@@ -147,16 +156,21 @@ export const contestApi = {
     return apiCall<{ questions: Array<{ question_id: number; title: string; question_text: string }> }>('/api/contest/round1/questions');
   },
 
-  // Round 1 API - Evaluate answer with Gemini (returns score + analysis)
-  async evaluateRound1Answer(user_id: string, question: string, user_answer: string) {
-    return apiCall<{ score: number; analysis: string }>('/api/contest/round1/evaluate', {
+  // Round 1 API - Submit answer for manual evaluation (returns pending status)
+  async evaluateRound1Answer(team_id: string, question_id: number, user_answer: string) {
+    return apiCall<{ success: boolean; status: string; message: string; queue_id: string }>('/api/contest/round1/evaluate', {
       method: 'POST',
-      body: JSON.stringify({ user_id, question, user_answer }),
+      body: JSON.stringify({ team_id, question_id, user_answer }),
     });
   },
 
+  // Round 1 API - Get evaluations for team
+  async getTeamEvaluations(team_id: string, round: string) {
+    return apiCall<{ evaluations: Array<{ queue_id: string; question_id: string; status: string; score: number | null; submission_time: string }> }>(`/api/contest/evaluations/team/${team_id}/round/${round}`);
+  },
+
   // Round 1 API - Final submission
-  async submitRound1(data: { team_id: string; round_id: number; total_score: number; submitted_at: string }) {
+  async submitRound1(data: { team_id: string; submitted_at: string }) {
     return apiCall('/api/contest/round1/submit', {
       method: 'POST',
       body: JSON.stringify(data),
@@ -175,26 +189,16 @@ export const contestApi = {
     return apiCall<{ questions: Array<{ question_id: number; title: string; description: string; code_snippet: string }> }>('/api/contest/round2/questions');
   },
 
-  // Round 2 API - Submit single answer for scoring
-  async submitRound2Answer(question_id: number, user_answer: string, language?: string) {
-    return apiCall<{ 
-      score: number;
-      identifiedErrors: Array<{
-        error_description: string;
-        fix_description: string;
-        identification_score: number;
-        fix_score: number;
-      }>;
-      analysis: string;
-      reason: string;
-    }>('/api/contest/round2/submit-answer', {
+  // Round 2 API - Submit single answer for manual evaluation
+  async submitRound2Answer(team_id: string, question_id: number, user_answer: string, language?: string) {
+    return apiCall<{ success: boolean; status: string; message: string; queue_id: string }>('/api/contest/round2/submit-answer', {
       method: 'POST',
-      body: JSON.stringify({ question_id, user_answer, language }),
+      body: JSON.stringify({ team_id, question_id, user_answer, language }),
     });
   },
 
-  // Round 2 API - Final submission
-  async submitRound2(data: { team_id: string; round_id: number; total_score: number; submitted_at: string }) {
+  // Round 2 API - Final submission (timestamp only)
+  async submitRound2(data: { teamId: string; submitted_at: string }) {
     return apiCall('/api/contest/round2/submit', {
       method: 'POST',
       body: JSON.stringify(data),

@@ -36,6 +36,11 @@ const panels = [
     icon: Users,
     body: "Assign squads, swap operatives, and mark extractions. Squad balance suggestions update live as submissions arrive.",
   },
+  {
+    title: "Evaluation",
+    icon: ClipboardList,
+    body: "Review and score Round 1 & 2 submissions manually. Each question is worth 0-10 points.",
+  },
 ];
 
 const overrides = [
@@ -90,7 +95,7 @@ export function AdminDashboard() {
     { path: '/missions/igi-3.mp4', name: 'IGI Mission 3', description: 'Third mission briefing video' },
   ];
 
-  // Poll telecast status
+  // Load telecast status once on mount
   useEffect(() => {
     const checkTelecastStatus = async () => {
       try {
@@ -105,9 +110,7 @@ export function AdminDashboard() {
     };
 
     checkTelecastStatus();
-    const interval = setInterval(checkTelecastStatus, 5000); // Check every 5 seconds
-    
-    return () => clearInterval(interval);
+    // No polling - manual refresh only
   }, []);
 
   // Fetch rounds state
@@ -144,7 +147,6 @@ export function AdminDashboard() {
     setUpdatingRound(roundId);
     try {
       const newFlag = currentFlag === 0 ? 1 : 0;
-      console.log(`🔄 Toggling ${roundId} Flag from ${currentFlag} to ${newFlag}`);
       
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/contest/rounds/${roundId}`,
@@ -157,7 +159,6 @@ export function AdminDashboard() {
       
       if (response.ok) {
         const updated = await response.json();
-        console.log('✅ Round updated:', updated);
         setRoundsState(prev => prev.map(r => r.id === roundId ? updated : r));
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
@@ -398,6 +399,7 @@ export function AdminDashboard() {
                 onClick={() => {
                   const routeMap: Record<string, string> = {
                     'Team Management': '/mission/control/team-management',
+                    'Evaluation': '/mission/control/evaluation',
                   };
                   
                   const route = routeMap[title];

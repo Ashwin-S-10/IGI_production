@@ -105,34 +105,24 @@ export function useUpdateRound() {
   })
 }
 
-// Submissions hooks
+// Submissions hooks - DISABLED (using evaluation table instead)
 export function useSubmissionsRound1(teamId?: string) {
-  const query = useQuery({
-    queryKey: ['submissions-round1', teamId],
-    queryFn: () => db.getSubmissionsRound1(teamId),
-    staleTime: 15000, // 15 seconds
-  })
-  
+  // Return empty data - submissions now tracked in evaluation table
   return {
-    submissions: query.data || [],
-    isLoading: query.isLoading,
-    error: query.error,
-    refetch: query.refetch,
+    submissions: [],
+    isLoading: false,
+    error: null,
+    refetch: async () => {},
   }
 }
 
 export function useSubmissionsRound2(teamId?: string) {
-  const query = useQuery({
-    queryKey: ['submissions-round2', teamId],
-    queryFn: () => db.getSubmissionsRound2(teamId),
-    staleTime: 15000, // 15 seconds
-  })
-  
+  // Return empty data - submissions now tracked in evaluation table
   return {
-    submissions: query.data || [],
-    isLoading: query.isLoading,
-    error: query.error,
-    refetch: query.refetch,
+    submissions: [],
+    isLoading: false,
+    error: null,
+    refetch: async () => {},
   }
 }
 
@@ -160,20 +150,14 @@ export function useCreateSubmissionRound2() {
   })
 }
 
-// AI Jobs hooks
+// AI Jobs hooks - DISABLED (no longer using AI evaluation)
 export function useAIJobs() {
-  const query = useQuery({
-    queryKey: ['ai-jobs'],
-    queryFn: () => db.getAIJobs(),
-    staleTime: 10000, // 10 seconds
-    refetchInterval: 5000, // Refetch every 5 seconds for real-time updates
-  })
-  
+  // Return empty data - AI jobs table deleted, using manual evaluation instead
   return {
-    jobs: query.data || [],
-    isLoading: query.isLoading,
-    error: query.error,
-    refetch: query.refetch,
+    jobs: [],
+    isLoading: false,
+    error: null,
+    refetch: async () => {},
   }
 }
 
@@ -211,8 +195,8 @@ export function useTelecast() {
       }
       return response.json();
     },
-    staleTime: 1000, // 1 second
-    refetchInterval: 2000, // Refetch every 2 seconds for real-time updates
+    staleTime: 30000, // 30 seconds
+    // No refetchInterval - manual refresh only
   })
   
   return {

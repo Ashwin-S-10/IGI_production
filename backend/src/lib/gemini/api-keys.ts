@@ -3,15 +3,16 @@
  * Handles multiple API keys and automatic failover on rate limiting
  */
 
-// API Keys priority order
+// API Keys priority order - ALL FROM ENVIRONMENT VARIABLES
 const API_KEYS = [
-  process.env.GEMINI_API_KEY || '',           // Key 1: Primary from env
-  process.env.GEMINI_API_KEY_2 || '',         // Key 2: Secondary from env
-  'AIzaSyBmg3zQR7ZI7xLaNVci_tMXjnMNStJt4wQ', // Key 3: New fallback
-  'AIzaSyABGk9Oqt-Rv9pPtbzxFeFmctcXtkqGMOU', // Key 4: Fallback
-  'AIzaSyAR_nsewHf5a7an28DPLYSH8iYXvHJY4gI', // Key 5: Fallback
-  'AIzaSyD91QKyP9JJH2pZDQjcO8iKcixq_nuZ4Ac',
-  'AIzaSyAYLEYiNXcaevFaJCmsqPjaPw0Zb1LgHYk'  // Key 6: Fallback
+  process.env.GEMINI_API_KEY || '',           // Key 1: Primary
+  process.env.GEMINI_API_KEY_2 || '',         // Key 2: Fallback 1
+  process.env.GEMINI_API_KEY_3 || '',         // Key 3: Fallback 2
+  process.env.GEMINI_API_KEY_4 || '',         // Key 4: Fallback 3
+  process.env.GEMINI_API_KEY_5 || '',         // Key 5: Fallback 4
+  process.env.GEMINI_API_KEY_6 || '',         // Key 6: Fallback 5
+  process.env.GEMINI_API_KEY_7 || '',         // Key 7: Fallback 6
+  process.env.GOOGLE_API_KEY || '',           // Key 8: Google API fallback
 ].filter(key => key.length > 0); // Remove empty keys
 
 let currentKeyIndex = 0;
@@ -55,19 +56,21 @@ export function getApiKeyCount(): number {
 }
 
 /**
- * Check if the error is a rate limit error
+ * Check if the error is a rate limit or forbidden error
  */
 export function isRateLimitError(error: any): boolean {
   if (typeof error === 'object' && error !== null) {
     // Check HTTP status code
-    if (error.status === 429) return true;
+    if (error.status === 429 || error.status === 403) return true;
     
     // Check error message
     const message = error.message || error.error?.message || '';
     if (typeof message === 'string') {
       return message.toLowerCase().includes('rate limit') ||
              message.toLowerCase().includes('quota') ||
-             message.toLowerCase().includes('429');
+             message.toLowerCase().includes('429') ||
+             message.toLowerCase().includes('403') ||
+             message.toLowerCase().includes('forbidden');
     }
   }
   return false;
@@ -104,16 +107,16 @@ export async function callGeminiWithFallback(
         return response;
       }
 
-      // Check if it's a rate limit error
-      if (response.status === 429) {
-        console.log(`[Gemini API] Rate limit hit on key #${currentKeyIndex + 1}`);
+      // Check if it's a rate limit or 403 forbidden error
+      if (response.status === 429 || response.status === 403) {
+        console.log(`[Gemini API] ${response.status === 403 ? '403 Forbidden' : 'Rate limit'} hit on key #${currentKeyIndex + 1}`);
         const errorText = await response.text();
         console.log(`[Gemini API] Error details:`, errorText);
         lastError = { status: response.status, message: errorText };
         
         // Try next key
         if (!switchToNextApiKey()) {
-          throw new Error('All API keys rate limited');
+          throw new Error(`All API keys exhausted (last error: ${response.status})`);
         }
         continue;
       }

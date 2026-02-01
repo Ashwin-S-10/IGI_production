@@ -6,6 +6,7 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import { MissionButton } from "@/components/ui/button";
 import { useAuth } from "@/components/providers/auth-provider";
 import { contestApi } from "@/lib/api-client";
+import { supabase } from "@/lib/supabase/client";
 
 interface Round2Question {
   question_id: number;
@@ -21,17 +22,11 @@ interface Round2Question {
 }
 
 interface EvaluationResult {
-  score: number;
-  identifiedErrors: Array<{
-    error_description: string;
-    fix_description: string;
-    identification_score: number;
-    fix_score: number;
-  }>;
-  analysis: string;
-  reason: string;
+  score: number | null;
   answer: string;
   language: string;
+  status: 'pending' | 'completed';
+  submittedAt: string;
 }
 
 type Round2WorkspaceNewProps = {
@@ -51,13 +46,37 @@ export function Round2WorkspaceNew({ roundId }: Round2WorkspaceNewProps) {
   const [scores, setScores] = useState<Record<number, EvaluationResult>>({});
   const [submitting, setSubmitting] = useState<number | null>(null);
   const [finalSubmitting, setFinalSubmitting] = useState(false);
+  const [isRoundLocked, setIsRoundLocked] = useState(false);
+  const [teamData, setTeamData] = useState<any>(null);
   // Track language selection for each question
   const [questionLanguages, setQuestionLanguages] = useState<Record<number, string>>({});
 
-  // Load questions and stored data
+  // Load questions and check if round is locked
   useEffect(() => {
     const loadData = async () => {
       try {
+        // CRITICAL: Check if round is already completed
+        if (user?.teamId) {
+          try {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/contest/teams/${user.teamId}`);
+            if (response.ok) {
+              const data = await response.json();
+              const teamInfo = data.team || data.data;
+              setTeamData(teamInfo);
+              
+              if (teamInfo?.r2_submission_time) {
+
+                setIsRoundLocked(true);
+                alert('Round 2 has already been submitted and is locked.');
+                router.push('/mission');
+                return;
+              }
+            }
+          } catch (error) {
+            console.error('[Round2] Failed to check round status:', error);
+          }
+        }
+        
         // Fetch questions from backend
         const response = await contestApi.getRound2Questions();
         setQuestions(response.questions);
@@ -98,6 +117,30 @@ export function Round2WorkspaceNew({ roundId }: Round2WorkspaceNewProps) {
             console.error('Failed to parse stored answers:', e);
           }
         }
+
+        // Fetch evaluations from backend to get latest scores
+        if (user?.teamId) {
+          try {
+            const evalResponse = await contestApi.getTeamEvaluations(user.teamId, 'round2');
+            const evaluationMap: Record<number, EvaluationResult> = {};
+            
+            evalResponse.evaluations.forEach(evaluation => {
+              const questionId = parseInt(evaluation.question_id);
+              evaluationMap[questionId] = {
+                score: evaluation.score,
+                answer: storedAnswers ? JSON.parse(storedAnswers)[questionId] || '' : '',
+                language: 'python', // Default, we don't store this in evaluation table
+                status: evaluation.status as 'pending' | 'completed',
+                submittedAt: evaluation.submission_time
+              };
+            });
+            
+            // Merge with stored scores, preferring backend data
+            setScores(prev => ({ ...prev, ...evaluationMap }));
+          } catch (error) {
+            console.error('[Round2] Failed to fetch evaluations:', error);
+          }
+        }
       } catch (error) {
         console.error('Failed to load Round 2 questions:', error);
       } finally {
@@ -106,7 +149,37 @@ export function Round2WorkspaceNew({ roundId }: Round2WorkspaceNewProps) {
     };
 
     loadData();
-  }, []);
+
+    // Subscribe to real-time changes on the teams table
+    const teamId = user?.teamId;
+    if (!teamId) return;
+
+    const channel = supabase
+      .channel(`team-round2-${teamId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'teams',
+          filter: `team_id=eq.${teamId}`,
+        },
+        (payload) => {
+          setTeamData(payload.new);
+          
+          // If r2_submission_time is set, lock the round
+          if (payload.new?.r2_submission_time) {
+            setIsRoundLocked(true);
+          }
+        }
+      )
+      .subscribe();
+
+    // Cleanup subscription on unmount
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.teamId]);
 
   // Auto-save answers to localStorage
   useEffect(() => {
@@ -143,16 +216,22 @@ export function Round2WorkspaceNew({ roundId }: Round2WorkspaceNewProps) {
       // Get the selected language for this question (default to python)
       const language = questionLanguages[questionId] || 'python';
       
-      const response = await contestApi.submitRound2Answer(questionId, answer, language);
+      const response = await contestApi.submitRound2Answer(
+        user?.teamId || 'unknown',
+        questionId,
+        answer,
+        language
+      );
       
-      // Store the detailed evaluation result
+      const timestamp = new Date().toISOString();
+      
+      // Store the evaluation result with pending status
       const evaluationResult: EvaluationResult = {
-        score: response.score,
-        identifiedErrors: response.identifiedErrors,
-        analysis: response.analysis,
-        reason: response.reason,
+        score: null,
         answer: answer,
-        language: language
+        language: language,
+        status: 'pending',
+        submittedAt: timestamp
       };
       
       setScores(prev => ({
@@ -170,7 +249,7 @@ export function Round2WorkspaceNew({ roundId }: Round2WorkspaceNewProps) {
     } finally {
       setSubmitting(null);
     }
-  }, [answers, questionLanguages]);
+  }, [answers, questionLanguages, user]);
 
   const handleFinalSubmit = useCallback(async () => {
     // Allow submission even if not all questions are answered
@@ -184,21 +263,16 @@ export function Round2WorkspaceNew({ roundId }: Round2WorkspaceNewProps) {
     setFinalSubmitting(true);
 
     try {
-      // Calculate total score (0 if no questions answered)
-      const totalScore = Object.values(scores).reduce((sum: number, item: EvaluationResult) => sum + item.score, 0);
-      
       // Get current timestamp
       const submittedAt = new Date().toISOString();
 
-      // Submit to backend
+      // Submit to backend (only timestamp, no score)
       await contestApi.submitRound2({
-        team_id: user.teamId,
-        round_id: 2,
-        total_score: totalScore,
+        teamId: user.teamId,
         submitted_at: submittedAt
       });
 
-      alert(`Round 2 submitted successfully! Total Score: ${totalScore}/100`);
+      alert(`Round 2 submitted successfully! Awaiting admin evaluation.`);
       
       // Optionally clear storage after successful submission
       // localStorage.removeItem(STORAGE_KEY);
@@ -212,7 +286,7 @@ export function Round2WorkspaceNew({ roundId }: Round2WorkspaceNewProps) {
     } finally {
       setFinalSubmitting(false);
     }
-  }, [questions, scores, user, router]);
+  }, [user, router]);
 
   if (loading) {
     return (
@@ -222,7 +296,6 @@ export function Round2WorkspaceNew({ roundId }: Round2WorkspaceNewProps) {
     );
   }
 
-  const totalScore = Object.values(scores).reduce((sum, item) => sum + item.score, 0);
   const answeredCount = Object.keys(scores).length;
 
   return (
@@ -246,8 +319,7 @@ export function Round2WorkspaceNew({ roundId }: Round2WorkspaceNewProps) {
             </div>
             <div className="text-right">
               <div className="text-sm text-zinc-400">Progress</div>
-              <div className="text-xl font-bold text-cyan-400">{answeredCount}/{questions.length}</div>
-              <div className="text-sm text-zinc-400">Score: {totalScore}/100</div>
+              <div className="text-xl font-bold text-cyan-400">{answeredCount}/{questions.length} Submitted</div>
             </div>
           </div>
         </div>
@@ -260,9 +332,9 @@ export function Round2WorkspaceNew({ roundId }: Round2WorkspaceNewProps) {
           <div className="text-sm text-zinc-300 space-y-2">
             <p>• Each question contains a code snippet with bug(s)</p>
             <p>• Identify the bug(s), explain what's wrong, and how to fix it</p>
-            <p>• Submit each answer individually to receive a score (0-10)</p>
-            <p>• After all questions are scored, submit final results</p>
-            <p>• Scores are stored in your browser and persist across page refreshes</p>
+            <p>• Submit each answer individually for manual admin evaluation</p>
+            <p>• Scores will be updated once admin reviews your submissions</p>
+            <p>• After submitting all answers, click final submit to record your timestamp</p>
           </div>
         </div>
 
@@ -311,12 +383,6 @@ export function Round2WorkspaceNew({ roundId }: Round2WorkspaceNewProps) {
                     </div>
                     <p className="text-sm text-zinc-400 mt-1">{question.description}</p>
                   </div>
-                  {isSubmitted && (
-                    <div className="text-right ml-4">
-                      <div className="text-sm text-zinc-400">Score</div>
-                      <div className="text-2xl font-bold text-cyan-400">{questionScore.score}/10</div>
-                    </div>
-                  )}
                 </div>
 
                 {/* Code Snippet */}
@@ -341,18 +407,6 @@ export function Round2WorkspaceNew({ roundId }: Round2WorkspaceNewProps) {
                   />
                 </div>
 
-                {/* Evaluation Result Display */}
-                {isSubmitted && questionScore && (
-                  <div className="mb-4 bg-zinc-950 border border-zinc-700 rounded-lg p-4">
-                    <h4 className="text-sm font-bold text-cyan-400 mb-3">Evaluation Result</h4>
-                    
-                    {/* Analysis */}
-                    <div>
-                      <div className="text-sm text-zinc-300 whitespace-pre-wrap">{questionScore.analysis}</div>
-                    </div>
-                  </div>
-                )}
-
                 {/* Submit Button */}
                 <MissionButton
                   onClick={() => handleSubmitAnswer(question.question_id)}
@@ -373,16 +427,16 @@ export function Round2WorkspaceNew({ roundId }: Round2WorkspaceNewProps) {
             <div>
               <h3 className="text-lg font-bold text-cyan-400">Final Submission</h3>
               <p className="text-sm text-zinc-400 mt-1">
-                Total Score: {totalScore}/100 • Answered: {answeredCount}/{questions.length}
+                Answered: {answeredCount}/{questions.length}
               </p>
             </div>
             <MissionButton
               onClick={handleFinalSubmit}
-              disabled={finalSubmitting}
+              disabled={finalSubmitting || isRoundLocked || !!teamData?.r2_submission_time}
               variant="primary"
             >
               {finalSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Submit Round 2
+              {teamData?.r2_submission_time ? 'Submitted' : 'Submit Round 2'}
             </MissionButton>
           </div>
         </div>

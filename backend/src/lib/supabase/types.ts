@@ -108,6 +108,58 @@ export interface Database {
           timer?: number | null
         }
       }
+      evaluation: {
+        Row: {
+          queue_id: string
+          team_id: string
+          round: string
+          question_id: string
+          raw_answer: string
+          status: 'pending' | 'processing' | 'completed' | 'failed'
+          score: number | null
+          feedback: string | null
+          submission_time: string
+          retry_count: number
+          max_retries: number
+          last_error: string | null
+          next_retry_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          queue_id?: string
+          team_id: string
+          round: string
+          question_id: string
+          raw_answer: string
+          status?: 'pending' | 'processing' | 'completed' | 'failed'
+          score?: number | null
+          feedback?: string | null
+          submission_time?: string
+          retry_count?: number
+          max_retries?: number
+          last_error?: string | null
+          next_retry_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          queue_id?: string
+          team_id?: string
+          round?: string
+          question_id?: string
+          raw_answer?: string
+          status?: 'pending' | 'processing' | 'completed' | 'failed'
+          score?: number | null
+          feedback?: string | null
+          submission_time?: string
+          retry_count?: number
+          max_retries?: number
+          last_error?: string | null
+          next_retry_at?: string | null
+          updated_at?: string
+        }
+      }
       submissions_round1: {
         Row: {
           id: string
