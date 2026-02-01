@@ -191,16 +191,6 @@ export function LeaderboardPanel() {
           >
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to Console
           </MissionButton>
-          <MissionButton
-            variant="secondary"
-            onClick={() => {
-              if (typeof window !== "undefined") {
-                window.print();
-              }
-            }}
-          >
-            Export Standings
-          </MissionButton>
         </div>
       </header>
 
