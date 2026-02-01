@@ -255,7 +255,7 @@ export function Round1Workspace({ roundId }: Round1WorkspaceProps) {
         <div className="mx-auto max-w-5xl px-4 py-4">
           <div className="flex items-center justify-between">
             <button
-              onClick={() => router.push('/mission')}
+              onClick={() => router.push('/landing')}
               className="flex items-center gap-2 text-[#FF6B00] hover:text-white hover:bg-[#FF6B00]/20 px-4 py-2 rounded-lg border border-[#FF6B00]/30 hover:border-[#FF6B00] transition-all duration-300"
             >
               <ArrowLeft className="h-5 w-5" />

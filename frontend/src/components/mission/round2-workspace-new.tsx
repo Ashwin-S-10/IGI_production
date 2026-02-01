@@ -306,7 +306,7 @@ export function Round2WorkspaceNew({ roundId }: Round2WorkspaceNewProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <button
-                onClick={() => router.push('/mission')}
+                onClick={() => router.push('/landing')}
                 className="flex items-center gap-2 text-zinc-400 hover:text-zinc-100 transition-colors"
               >
                 <ArrowLeft className="h-4 w-4" />
