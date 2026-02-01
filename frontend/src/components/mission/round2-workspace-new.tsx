@@ -45,13 +45,33 @@ export function Round2WorkspaceNew({ roundId }: Round2WorkspaceNewProps) {
   const [scores, setScores] = useState<Record<number, EvaluationResult>>({});
   const [submitting, setSubmitting] = useState<number | null>(null);
   const [finalSubmitting, setFinalSubmitting] = useState(false);
+  const [isRoundLocked, setIsRoundLocked] = useState(false);
   // Track language selection for each question
   const [questionLanguages, setQuestionLanguages] = useState<Record<number, string>>({});
 
-  // Load questions and stored data
+  // Load questions and check if round is locked
   useEffect(() => {
     const loadData = async () => {
       try {
+        // CRITICAL: Check if round is already completed
+        if (user?.teamId) {
+          try {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/contest/teams/${user.teamId}`);
+            if (response.ok) {
+              const teamData = await response.json();
+              if (teamData.team?.r2_submission_time) {
+                console.log('[Round2] Round already completed, redirecting...');
+                setIsRoundLocked(true);
+                alert('Round 2 has already been submitted and is locked.');
+                router.push('/mission');
+                return;
+              }
+            }
+          } catch (error) {
+            console.error('[Round2] Failed to check round status:', error);
+          }
+        }
+        
         // Fetch questions from backend
         const response = await contestApi.getRound2Questions();
         setQuestions(response.questions);
@@ -384,7 +404,7 @@ export function Round2WorkspaceNew({ roundId }: Round2WorkspaceNewProps) {
             <div>
               <h3 className="text-lg font-bold text-cyan-400">Final Submission</h3>
               <p className="text-sm text-zinc-400 mt-1">
-                Total Score: {totalScore}/100 • Answered: {answeredCount}/{questions.length}
+                Answered: {answeredCount}/{questions.length}
               </p>
             </div>
             <MissionButton
