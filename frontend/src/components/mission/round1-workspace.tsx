@@ -37,11 +37,31 @@ export function Round1Workspace({ roundId }: Round1WorkspaceProps) {
   const [scores, setScores] = useState<Record<number, QuestionScore>>({});
   const [submitting, setSubmitting] = useState<number | null>(null);
   const [finalSubmitting, setFinalSubmitting] = useState(false);
+  const [isRoundLocked, setIsRoundLocked] = useState(false);
 
-  // Load questions and stored data
+  // Load questions and check if round is locked
   useEffect(() => {
     const loadData = async () => {
       try {
+        // CRITICAL: Check if round is already completed
+        if (user?.teamId) {
+          try {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/contest/teams/${user.teamId}`);
+            if (response.ok) {
+              const teamData = await response.json();
+              if (teamData.team?.r1_submission_time) {
+                console.log('[Round1] Round already completed, redirecting...');
+                setIsRoundLocked(true);
+                alert('Round 1 has already been submitted and is locked.');
+                router.push('/mission');
+                return;
+              }
+            }
+          } catch (error) {
+            console.error('[Round1] Failed to check round status:', error);
+          }
+        }
+        
         // Fetch questions from backend
         const response = await contestApi.getRound1Questions();
         setQuestions(response.questions);

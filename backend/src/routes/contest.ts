@@ -225,6 +225,26 @@ router.post('/round1/evaluate', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Authentication required. Please log in.' });
     }
     
+    // CHECK: Prevent submission if round already completed
+    const { data: teamData, error: teamError } = await supabaseAdmin
+      .from('teams')
+      .select('r1_submission_time')
+      .eq('team_id', team_id)
+      .single();
+    
+    if (teamError) {
+      console.error('[Round1/evaluate] Failed to check team status:', teamError);
+      return res.status(500).json({ error: 'Failed to verify team status' });
+    }
+    
+    if (teamData?.r1_submission_time) {
+      console.warn(`[Round1/evaluate] BLOCKED: Team ${team_id} already completed Round 1 at ${teamData.r1_submission_time}`);
+      return res.status(403).json({ 
+        error: 'Round 1 has already been submitted and is locked',
+        completed_at: teamData.r1_submission_time
+      });
+    }
+    
     console.log(`[Round1/evaluate] Team ${team_id} submitting answer for question ${question_id}`);
     
     // Store submission in evaluation table for manual admin review
@@ -278,6 +298,27 @@ router.post('/round1/submit', async (req: Request, res: Response) => {
     
     if (!team_id) {
       return res.status(400).json({ error: 'Missing required field: team_id' });
+    }
+    
+    // CHECK: Prevent duplicate final submission
+    const { data: existingTeam, error: checkError } = await supabaseAdmin
+      .from('teams')
+      .select('r1_submission_time')
+      .eq('team_id', team_id)
+      .single();
+    
+    if (checkError) {
+      console.error('[Round1/submit] Failed to check team:', checkError);
+      return res.status(500).json({ error: 'Failed to verify team status' });
+    }
+    
+    if (existingTeam?.r1_submission_time) {
+      console.warn(`[Round1/submit] BLOCKED: Team ${team_id} already submitted Round 1 at ${existingTeam.r1_submission_time}`);
+      return res.status(403).json({ 
+        error: 'Round 1 has already been submitted and is locked',
+        completed_at: existingTeam.r1_submission_time,
+        message: 'This round cannot be resubmitted'
+      });
     }
     
     const timestamp = submitted_at || new Date().toISOString();
@@ -369,6 +410,26 @@ router.post('/round2/submit-answer', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Authentication required. Please log in.' });
     }
     
+    // CHECK: Prevent submission if round already completed
+    const { data: teamData, error: teamError } = await supabaseAdmin
+      .from('teams')
+      .select('r2_submission_time')
+      .eq('team_id', team_id)
+      .single();
+    
+    if (teamError) {
+      console.error('[Round2/submit-answer] Failed to check team status:', teamError);
+      return res.status(500).json({ error: 'Failed to verify team status' });
+    }
+    
+    if (teamData?.r2_submission_time) {
+      console.warn(`[Round2/submit-answer] BLOCKED: Team ${team_id} already completed Round 2 at ${teamData.r2_submission_time}`);
+      return res.status(403).json({ 
+        error: 'Round 2 has already been submitted and is locked',
+        completed_at: teamData.r2_submission_time
+      });
+    }
+    
     console.log(`[Round2/submit-answer] Team ${team_id} submitting answer for question ${question_id}`);
     
     // Find the question to validate it exists
@@ -430,6 +491,27 @@ router.post('/round2/submit', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Missing required field: teamId or team_id' });
     }
     
+    // CHECK: Prevent duplicate final submission
+    const { data: existingTeam, error: checkError } = await supabaseAdmin
+      .from('teams')
+      .select('r2_submission_time')
+      .eq('team_id', team_id)
+      .single();
+    
+    if (checkError) {
+      console.error('[Round2/submit] Failed to check team:', checkError);
+      return res.status(500).json({ error: 'Failed to verify team status' });
+    }
+    
+    if (existingTeam?.r2_submission_time) {
+      console.warn(`[Round2/submit] BLOCKED: Team ${team_id} already submitted Round 2 at ${existingTeam.r2_submission_time}`);
+      return res.status(403).json({ 
+        error: 'Round 2 has already been submitted and is locked',
+        completed_at: existingTeam.r2_submission_time,
+        message: 'This round cannot be resubmitted'
+      });
+    }
+    
     const timestamp = submitted_at || new Date().toISOString();
     
     console.log(`[Round2/Submit] Team ${team_id} final submission at ${timestamp}`);
@@ -473,6 +555,34 @@ router.post('/round2/submit', async (req: Request, res: Response) => {
   }
 });
     
+
+// ===================================
+// EVALUATION APIs
+// ===================================
+
+// Get evaluations for a specific team and round (for contestants to see their submissions)
+router.get('/evaluations/team/:team_id/round/:round', async (req: Request, res: Response) => {
+  try {
+    const { team_id, round } = req.params;
+    
+    const { data, error } = await supabaseAdmin
+      .from('evaluation')
+      .select('*')
+      .eq('team_id', team_id)
+      .eq('round', round)
+      .order('question_id', { ascending: true });
+    
+    if (error) {
+      console.error('[evaluations/team/:team_id/round/:round] Database error:', error);
+      return res.status(500).json({ error: 'Failed to fetch evaluations' });
+    }
+    
+    res.json({ evaluations: data || [] });
+  } catch (error) {
+    console.error('[evaluations/team/:team_id/round/:round] Error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 // ===================================
 // ADMIN EVALUATION APIs
@@ -616,43 +726,36 @@ router.post('/admin/teams/:team_id/round/:round/finalize', async (req: Request, 
     // Update teams table - use RPC to bypass trigger locks for admin manual scoring
     const scoreColumn = round === 'round1' ? 'r1_score' : 'r2_score';
     
-    // Use raw SQL query to bypass triggers
-    const { data: teamData, error: updateError } = await supabaseAdmin.rpc('admin_update_team_score', {
-      p_team_id: team_id,
-      p_score_column: scoreColumn,
-      p_score: totalScore
-    });
+    // Try direct update with service role key (should bypass RLS)
+    console.log('[admin/finalize] Attempting direct update with service role...');
+    const { data: directData, error: directError } = await supabaseAdmin
+      .from('teams')
+      .update({
+        [scoreColumn]: totalScore
+      })
+      .eq('team_id', team_id)
+      .select();
     
-    if (updateError) {
-      console.error('[admin/finalize] RPC error:', updateError);
-      // Fallback to direct update if RPC doesn't exist
-      console.log('[admin/finalize] Attempting direct update...');
-      const { data: directData, error: directError } = await supabaseAdmin
-        .from('teams')
-        .update({
-          [scoreColumn]: totalScore
-        })
-        .eq('team_id', team_id)
-        .select();
+    if (directError) {
+      console.error('[admin/finalize] Direct update error:', directError);
       
-      if (directError) {
-        console.error('[admin/finalize] Direct update error:', directError);
+      // If it's a trigger/constraint error, provide instructions
+      if (directError.code === 'P0001' || directError.message?.includes('locked')) {
         return res.status(500).json({ 
-          error: 'Failed to update team score. The round may be locked. Please unlock the round first or contact an administrator.', 
-          details: directError.message 
+          error: 'Database trigger is blocking the update. Admin score updates should bypass round locks.',
+          details: directError.message,
+          instruction: 'The database trigger needs to be modified to allow admin updates. Contact the database administrator.'
         });
       }
       
-      if (!directData || directData.length === 0) {
-        return res.status(404).json({ error: 'Team not found' });
-      }
-      
-      return res.json({ 
-        success: true, 
-        message: `${round} score finalized`,
-        total_score: totalScore,
-        team: directData[0]
+      return res.status(500).json({ 
+        error: 'Failed to update team score', 
+        details: directError.message 
       });
+    }
+    
+    if (!directData || directData.length === 0) {
+      return res.status(404).json({ error: 'Team not found' });
     }
     
     // Invalidate leaderboard cache
@@ -665,7 +768,7 @@ router.post('/admin/teams/:team_id/round/:round/finalize', async (req: Request, 
       success: true, 
       message: `${round} score finalized`,
       total_score: totalScore,
-      team: teamData[0]
+      team: directData[0]
     });
   } catch (error) {
     console.error('[admin/finalize] Error:', error);
@@ -1085,6 +1188,33 @@ router.post('/admin/clear-round2', async (req: Request, res: Response) => {
       error: 'Failed to clear Round 2 data',
       details: error instanceof Error ? error.message : 'Unknown error'
     });
+  }
+});
+
+// Get team data including round completion status
+router.get('/teams/:team_id', async (req: Request, res: Response) => {
+  try {
+    const { team_id } = req.params;
+    
+    const { data, error } = await supabaseAdmin
+      .from('teams')
+      .select('team_id, team_name, r1_submission_time, r2_submission_time, r1_score, r2_score')
+      .eq('team_id', team_id)
+      .single();
+    
+    if (error) {
+      console.error('[teams/:team_id] Database error:', error);
+      return res.status(500).json({ error: 'Failed to fetch team data' });
+    }
+    
+    if (!data) {
+      return res.status(404).json({ error: 'Team not found' });
+    }
+    
+    res.json({ team: data });
+  } catch (error) {
+    console.error('[teams/:team_id] Error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

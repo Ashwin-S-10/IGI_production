@@ -66,6 +66,12 @@ async function apiCall<T = any>(
     }
     
     console.error(`[API Error] ${options.method || 'GET'} ${url}:`, response.status, errorMessage);
+    
+    // Show alert for authentication errors
+    if (response.status === 401) {
+      alert('Session expired. Please log in again.');
+    }
+    
     throw new Error(errorMessage);
   }
 
