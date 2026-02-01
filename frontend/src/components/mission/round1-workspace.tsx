@@ -14,9 +14,10 @@ interface Question {
 }
 
 interface QuestionScore {
-  score: number;
+  score: number | null;
   answer: string;
-  analysis?: string;
+  status: 'pending' | 'completed';
+  submittedAt: string;
 }
 
 type Round1WorkspaceProps = {
@@ -55,6 +56,29 @@ export function Round1Workspace({ roundId }: Round1WorkspaceProps) {
         if (storedAnswers) {
           setAnswers(JSON.parse(storedAnswers));
         }
+
+        // Fetch evaluations from backend to get latest scores
+        if (user?.teamId) {
+          try {
+            const evalResponse = await contestApi.getTeamEvaluations(user.teamId, 'round1');
+            const evaluationMap: Record<number, QuestionScore> = {};
+            
+            evalResponse.evaluations.forEach(evaluation => {
+              const questionId = parseInt(evaluation.question_id);
+              evaluationMap[questionId] = {
+                score: evaluation.score,
+                answer: storedAnswers ? JSON.parse(storedAnswers)[questionId] || '' : '',
+                status: evaluation.status as 'pending' | 'completed',
+                submittedAt: evaluation.submission_time
+              };
+            });
+            
+            // Merge with stored scores, preferring backend data
+            setScores(prev => ({ ...prev, ...evaluationMap }));
+          } catch (error) {
+            console.error('[Round1] Failed to fetch evaluations:', error);
+          }
+        }
       } catch (error) {
         console.error('[Round1] Failed to load questions:', error);
       } finally {
@@ -63,7 +87,7 @@ export function Round1Workspace({ roundId }: Round1WorkspaceProps) {
     };
 
     loadData();
-  }, []);
+  }, [user?.teamId]);
 
   // Save answers to localStorage
   const saveAnswer = useCallback((questionId: number, answer: string) => {
@@ -91,18 +115,21 @@ export function Round1Workspace({ roundId }: Round1WorkspaceProps) {
     setSubmitting(questionId);
     
     try {
-      // Submit to backend for Gemini evaluation (returns score + analysis)
+      // Submit to backend for manual admin evaluation
       const response = await contestApi.evaluateRound1Answer(
-        user?.email || 'unknown',
-        question.question_text,
+        user?.teamId || 'unknown',
+        questionId,
         answer
       );
       
-      // Store score and analysis in state and localStorage
+      const timestamp = new Date().toISOString();
+      
+      // Store submission with pending status in state and localStorage
       const newScore: QuestionScore = {
-        score: response.score,
+        score: null,
         answer: answer,
-        analysis: response.analysis
+        status: 'pending',
+        submittedAt: timestamp
       };
       
       setScores(prev => {
@@ -121,7 +148,6 @@ export function Round1Workspace({ roundId }: Round1WorkspaceProps) {
 
   // Final submission after all questions
   const handleFinalSubmit = useCallback(async () => {
-    const totalScore = Object.values(scores).reduce((sum: number, s: QuestionScore) => sum + s.score, 0);
     const answeredCount = Object.keys(scores).length;
     
     if (answeredCount < questions.length) {
@@ -138,12 +164,10 @@ export function Round1Workspace({ roundId }: Round1WorkspaceProps) {
       
       await contestApi.submitRound1({
         team_id: user?.teamId || 'unknown',
-        round_id: 1,
-        total_score: totalScore,
         submitted_at: timestamp
       });
 
-      alert(`Round 1 submitted successfully!\nTotal Score: ${totalScore}/${questions.length * 10}`);
+      alert(`Round 1 submitted successfully! Awaiting admin evaluation.`);
       
       // Clear localStorage
       localStorage.removeItem(STORAGE_KEY);
@@ -167,8 +191,6 @@ export function Round1Workspace({ roundId }: Round1WorkspaceProps) {
     );
   }
 
-  const totalScore = Object.values(scores).reduce((sum, s) => sum + s.score, 0);
-  const maxScore = questions.length * 10;
   const answeredCount = Object.keys(scores).length;
 
   return (
@@ -188,10 +210,7 @@ export function Round1Workspace({ roundId }: Round1WorkspaceProps) {
             <div className="text-right">
               <div className="text-sm text-gray-400">Progress</div>
               <div className="text-lg font-bold text-[#FF6B00]">
-                {answeredCount}/{questions.length} Questions
-              </div>
-              <div className="text-sm text-gray-400">
-                Score: {totalScore}/{maxScore}
+                {answeredCount}/{questions.length} Submitted
               </div>
             </div>
           </div>
@@ -205,10 +224,10 @@ export function Round1Workspace({ roundId }: Round1WorkspaceProps) {
             Round 1 — Algorithm Challenge
           </h1>
           <p className="text-xl text-yellow-400 italic mb-4">
-            "Write your solutions clearly. Show your logic. The AI is watching."
+            "Write your solutions clearly. Show your logic. The admin will review your answers."
           </p>
           <p className="text-gray-400">
-            Answer each question and submit for AI scoring. Each question is worth 0-10 points.
+            Answer each question and submit for manual admin evaluation. Each question is worth 0-10 points.
           </p>
         </div>
 
@@ -229,28 +248,12 @@ export function Round1Workspace({ roundId }: Round1WorkspaceProps) {
                   <h3 className="text-lg font-bold text-[#FF6B00]">
                     {question.title}
                   </h3>
-                  {isSubmitted && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-400">Score:</span>
-                      <span className="text-2xl font-bold text-green-400">
-                        {questionScore.score}/10
-                      </span>
-                    </div>
-                  )}
                 </div>
 
                 {/* Question Text */}
                 <div className="mb-4 whitespace-pre-wrap text-gray-300">
                   {question.question_text}
                 </div>
-
-                {/* Gemini Analysis (shown after submission) */}
-                {isSubmitted && questionScore.analysis && (
-                  <div className="mb-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded">
-                    <div className="text-sm font-semibold text-blue-400 mb-2">Analysis</div>
-                    <div className="text-sm text-gray-300">{questionScore.analysis}</div>
-                  </div>
-                )}
 
                 {/* Answer Input */}
                 <div className="space-y-3">
@@ -273,7 +276,7 @@ export function Round1Workspace({ roundId }: Round1WorkspaceProps) {
                     {isSubmitting ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        Scoring...
+                        Submitting...
                       </>
                     ) : isSubmitted ? (
                       'Submitted'
@@ -296,8 +299,6 @@ export function Round1Workspace({ roundId }: Round1WorkspaceProps) {
                   Ready to Submit Round 1?
                 </h3>
                 <p className="text-gray-400">
-                  Total Score: <span className="font-bold text-white">{totalScore}/{maxScore}</span>
-                  {' · '}
                   Answered: <span className="font-bold text-white">{answeredCount}/{questions.length}</span>
                 </p>
               </div>

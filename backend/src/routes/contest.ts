@@ -207,37 +207,87 @@ router.get('/round1/questions', async (req: Request, res: Response) => {
   }
 });
 
-// Round 1 - Evaluate answer with Gemini (returns score + analysis)
-router.post('/round1/evaluate', evaluateAnswerController);
+// Round 1 - Submit answer to evaluation queue (manual admin scoring)
+router.post('/round1/evaluate', async (req: Request, res: Response) => {
+  try {
+    const { team_id, question_id, user_answer } = req.body;
+    
+    console.log('[Round1/evaluate] Request body:', JSON.stringify(req.body));
+    
+    if (!team_id || !question_id || user_answer === undefined) {
+      console.error('[Round1/evaluate] Missing fields:', { team_id, question_id, user_answer: user_answer !== undefined });
+      return res.status(400).json({ error: 'Missing required fields: team_id, question_id, user_answer' });
+    }
+    
+    // Reject unknown team_id
+    if (team_id === 'unknown' || !team_id.trim()) {
+      console.error('[Round1/evaluate] Invalid team_id:', team_id);
+      return res.status(401).json({ error: 'Authentication required. Please log in.' });
+    }
+    
+    console.log(`[Round1/evaluate] Team ${team_id} submitting answer for question ${question_id}`);
+    
+    // Store submission in evaluation table for manual admin review
+    const { data, error } = await supabaseAdmin
+      .from('evaluation')
+      .upsert({
+        team_id,
+        round: 'round1',
+        question_id: question_id.toString(),
+        raw_answer: typeof user_answer === 'string' ? user_answer : JSON.stringify(user_answer),
+        status: 'pending',
+        submission_time: new Date().toISOString()
+      }, {
+        onConflict: 'team_id,round,question_id',
+        ignoreDuplicates: false
+      })
+      .select();
+    
+    if (error) {
+      console.error('[Round1/evaluate] Database error:', error);
+      return res.status(500).json({ error: 'Failed to save submission', details: error.message });
+    }
+    
+    if (!data || data.length === 0) {
+      console.error('[Round1/evaluate] No data returned from upsert');
+      return res.status(500).json({ error: 'Failed to save submission - no data returned' });
+    }
+    
+    console.log(`[Round1/evaluate] Submission saved successfully. Queue ID: ${data[0]?.queue_id}`);
+    
+    // Return pending status - admin will score later
+    res.json({
+      success: true,
+      status: 'pending',
+      message: 'Answer submitted for evaluation',
+      queue_id: data[0]?.queue_id
+    });
+  } catch (error) {
+    console.error('[round1/evaluate] Error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' });
+  }
+});
 
-// Round 1 - Final submission with total score
+// Round 1 - Final submission (only records timestamp, admin will calculate score later)
 router.post('/round1/submit', async (req: Request, res: Response) => {
   try {
-    const { team_id, round_id, total_score, submitted_at } = req.body;
+    const { team_id, submitted_at } = req.body;
     
     console.log('[Round1/submit] Request body:', JSON.stringify(req.body));
     console.log('[Round1/submit] team_id:', team_id, 'type:', typeof team_id);
     
-    if (!team_id || total_score === undefined || total_score === null) {
-      return res.status(400).json({ error: 'Missing required fields: team_id and total_score' });
-    }
-    
-    console.log(`[Round1] Team ${team_id} submitted with score: ${total_score} at ${submitted_at}`);
-    
-    // Validate score is within 0-100 range (do NOT transform the score)
-    const finalScore = Math.round(total_score);
-    if (finalScore < 0 || finalScore > 100) {
-      console.error(`[Round1] Invalid score ${finalScore} - must be between 0-100`);
-      return res.status(400).json({ error: 'Invalid score - must be between 0 and 100' });
+    if (!team_id) {
+      return res.status(400).json({ error: 'Missing required field: team_id' });
     }
     
     const timestamp = submitted_at || new Date().toISOString();
     
-    // Update teams table with r1_score and r1_submission_time
+    console.log(`[Round1] Team ${team_id} final submission at ${timestamp}`);
+    
+    // Update teams table with r1_submission_time only (score calculated by admin later)
     const { data, error } = await supabaseAdmin
       .from('teams')
       .update({
-        r1_score: finalScore,
         r1_submission_time: timestamp
       })
       .eq('team_id', team_id)
@@ -256,16 +306,11 @@ router.post('/round1/submit', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Team not found' });
     }
     
-    // Invalidate leaderboard cache (trigger will auto-update ranks)
-    const { leaderboardCache } = await import('../lib/cache/leaderboard-cache');
-    leaderboardCache.invalidateAll();
-    
-    console.log(`[Round1] Team ${team_id} submission saved successfully. Score: ${finalScore}, Data:`, data[0]);
+    console.log(`[Round1] Team ${team_id} submission timestamp saved successfully`);
     
     res.json({ 
       success: true, 
-      message: 'Round 1 submission recorded',
-      score: finalScore,
+      message: 'Round 1 submission recorded. Awaiting admin evaluation.',
       team: data[0]
     });
   } catch (error) {
@@ -309,46 +354,59 @@ router.get('/round2/questions', async (req: Request, res: Response) => {
   }
 });
 
-// Round 2 - Submit single answer for scoring
+// Round 2 - Submit single answer to evaluation queue (manual admin scoring)
 router.post('/round2/submit-answer', async (req: Request, res: Response) => {
   try {
-    const { question_id, user_answer, language } = req.body;
+    const { team_id, question_id, user_answer, language } = req.body;
     
-    if (!question_id || user_answer === undefined) {
-      return res.status(400).json({ error: 'Missing question_id or user_answer' });
+    if (!team_id || !question_id || user_answer === undefined) {
+      return res.status(400).json({ error: 'Missing required fields: team_id, question_id, user_answer' });
     }
     
-    // Find the question (no bug explanation needed - Gemini will find bugs)
+    // Reject unknown team_id
+    if (team_id === 'unknown' || !team_id.trim()) {
+      console.error('[Round2/submit-answer] Invalid team_id:', team_id);
+      return res.status(401).json({ error: 'Authentication required. Please log in.' });
+    }
+    
+    console.log(`[Round2/submit-answer] Team ${team_id} submitting answer for question ${question_id}`);
+    
+    // Find the question to validate it exists
     const question = ROUND2_QUESTIONS.find(q => q.question_id === question_id);
     
     if (!question) {
       return res.status(404).json({ error: 'Question not found' });
     }
     
-    // Get the code snippet for the selected language
-    const selectedLanguage = language || 'python';
-    let codeSnippet = question.code_snippet;
+    // Store submission in evaluation table for manual admin review
+    const { data, error } = await supabaseAdmin
+      .from('evaluation')
+      .upsert({
+        team_id,
+        round: 'round2',
+        question_id: question_id.toString(),
+        raw_answer: typeof user_answer === 'string' ? user_answer : JSON.stringify(user_answer),
+        status: 'pending',
+        submission_time: new Date().toISOString()
+      }, {
+        onConflict: 'team_id,round,question_id',
+        ignoreDuplicates: false
+      })
+      .select();
     
-    // If multi-language support exists, use the appropriate version
-    if (question.code_snippets && (question.code_snippets as any)[selectedLanguage]) {
-      codeSnippet = (question.code_snippets as any)[selectedLanguage];
+    if (error) {
+      console.error('[Round2/submit-answer] Database error:', error);
+      return res.status(500).json({ error: 'Failed to save submission', details: error.message });
     }
     
-    // Score using Gemini AI (Gemini analyzes code and finds bugs independently)
-    const evaluationResult = await scoreDebuggingAnswerWithGemini(
-      question.title,
-      question.description,
-      codeSnippet,
-      user_answer,
-      selectedLanguage
-    );
+    console.log(`[Round2/submit-answer] Submission saved successfully. Queue ID: ${data[0]?.queue_id}`);
     
-    // Return detailed evaluation result (but NOT the bug explanation)
+    // Return pending status - admin will score later
     res.json({
-      score: evaluationResult.score,
-      identifiedErrors: evaluationResult.identifiedErrors,
-      analysis: evaluationResult.analysis,
-      reason: evaluationResult.reason
+      success: true,
+      status: 'pending',
+      message: 'Answer submitted for evaluation',
+      queue_id: data[0]?.queue_id
     });
     
   } catch (error) {
@@ -357,14 +415,13 @@ router.post('/round2/submit-answer', async (req: Request, res: Response) => {
   }
 });
 
-// Round 2 - Final submission with total score
+// Round 2 - Final submission (only records timestamp, admin will calculate score later)
 router.post('/round2/submit', async (req: Request, res: Response) => {
   try {
-    const { teamId, total_score, submitted_at } = req.body;
+    const { teamId, submitted_at } = req.body;
     
     console.log('[Round2/submit] Request body:', JSON.stringify(req.body));
     console.log('[Round2/submit] teamId:', teamId, 'type:', typeof teamId);
-    console.log('[Round2/submit] total_score:', total_score, 'type:', typeof total_score);
     
     // Accept either teamId or team_id
     const team_id = teamId || req.body.team_id;
@@ -373,26 +430,14 @@ router.post('/round2/submit', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Missing required field: teamId or team_id' });
     }
     
-    if (total_score === undefined || total_score === null) {
-      return res.status(400).json({ error: 'Missing required field: total_score' });
-    }
-    
-    // Validate score is within 0-100 range (do NOT transform the score)
-    const finalScore = Math.round(total_score);
-    if (finalScore < 0 || finalScore > 100) {
-      console.error(`[Round2] Invalid score ${finalScore} - must be between 0-100`);
-      return res.status(400).json({ error: 'Invalid score - must be between 0 and 100' });
-    }
-    
     const timestamp = submitted_at || new Date().toISOString();
     
-    console.log(`[Round2/Submit] Team ${team_id} submitting Round 2 with score: ${finalScore}`);
+    console.log(`[Round2/Submit] Team ${team_id} final submission at ${timestamp}`);
     
-    // Update teams table with r2_score and r2_submission_time
+    // Update teams table with r2_submission_time only (score calculated by admin later)
     const { data, error } = await supabaseAdmin
       .from('teams')
       .update({
-        r2_score: finalScore,
         r2_submission_time: timestamp
       })
       .eq('team_id', team_id)
@@ -411,28 +456,12 @@ router.post('/round2/submit', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Team not found' });
     }
     
-    // Invalidate leaderboard cache (trigger will auto-update ranks)
-    const { leaderboardCache } = await import('../lib/cache/leaderboard-cache');
-    leaderboardCache.invalidateAll();
-    
-    console.log(`[Round2/Submit] Team ${team_id} submission saved. Score: ${finalScore}. Updated team:`, data[0]);
-    
-    // Get team rankings
-    const rankings = await getRankings(2);
-    const teamRanking = rankings.find(t => t.team_id === team_id);
-    const placement = teamRanking?.rank || null;
-    
-    // Determine qualification (top 50% advances to Round 3)
-    const totalTeams = rankings.length;
-    const qualified = placement ? placement <= Math.ceil(totalTeams / 2) : false;
+    console.log(`[Round2/Submit] Team ${team_id} submission timestamp saved successfully`);
     
     res.json({ 
       success: true,
-      totalScore: finalScore,
-      placement,
-      qualified,
-      evaluations: [],
-      message: 'Round 2 submission recorded'
+      message: 'Round 2 submission recorded. Awaiting admin evaluation.',
+      team: data[0]
     });
     
   } catch (error) {
@@ -445,7 +474,236 @@ router.post('/round2/submit', async (req: Request, res: Response) => {
 });
     
 
+// ===================================
+// ADMIN EVALUATION APIs
+// ===================================
+
+// Get evaluations for admin review (with team names)
+router.get('/admin/evaluations', async (req: Request, res: Response) => {
+  try {
+    const { round, team_id, status } = req.query;
+    
+    // Build query
+    let query = supabaseAdmin
+      .from('evaluation')
+      .select(`
+        *,
+        teams!inner (
+          team_name,
+          player1_name,
+          player2_name
+        )
+      `)
+      .order('submission_time', { ascending: false });
+    
+    // Apply filters
+    if (round) {
+      query = query.eq('round', round);
+    }
+    if (team_id) {
+      query = query.eq('team_id', team_id);
+    }
+    if (status) {
+      query = query.eq('status', status);
+    }
+    
+    const { data, error } = await query;
+    
+    if (error) {
+      console.error('[admin/evaluations] Database error:', error);
+      return res.status(500).json({ error: 'Failed to fetch evaluations', details: error.message });
+    }
+    
+    console.log(`[admin/evaluations] Fetched ${data?.length || 0} evaluations`);
+    
+    res.json({ evaluations: data || [] });
+  } catch (error) {
+    console.error('[admin/evaluations] Error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' });
+  }
+});
+
+// Update individual submission score
+router.put('/admin/evaluations/:queue_id', async (req: Request, res: Response) => {
+  try {
+    const { queue_id } = req.params;
+    const { score, feedback } = req.body;
+    
+    if (score === undefined || score === null) {
+      return res.status(400).json({ error: 'Missing required field: score' });
+    }
+    
+    // Validate score is 0-10
+    const numericScore = Number(score);
+    if (isNaN(numericScore) || numericScore < 0 || numericScore > 10) {
+      return res.status(400).json({ error: 'Score must be between 0 and 10' });
+    }
+    
+    console.log(`[admin/evaluations/${queue_id}] Updating score to ${numericScore}`);
+    
+    // Update the evaluation record
+    const { data, error } = await supabaseAdmin
+      .from('evaluation')
+      .update({
+        score: numericScore,
+        feedback: feedback || null,
+        status: 'completed'
+      })
+      .eq('queue_id', queue_id)
+      .select();
+    
+    if (error) {
+      console.error('[admin/evaluations] Update error:', error);
+      return res.status(500).json({ error: 'Failed to update score', details: error.message });
+    }
+    
+    if (!data || data.length === 0) {
+      return res.status(404).json({ error: 'Evaluation not found' });
+    }
+    
+    console.log(`[admin/evaluations/${queue_id}] Score updated successfully`);
+    
+    res.json({ success: true, evaluation: data[0] });
+  } catch (error) {
+    console.error('[admin/evaluations/:queue_id] Error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' });
+  }
+});
+
+// Finalize team score (sum all completed evaluations and update teams table)
+router.post('/admin/teams/:team_id/round/:round/finalize', async (req: Request, res: Response) => {
+  try {
+    const { team_id, round } = req.params;
+    
+    console.log(`[admin/finalize] Finalizing ${round} score for team ${team_id}`);
+    
+    // Validate round
+    if (round !== 'round1' && round !== 'round2') {
+      return res.status(400).json({ error: 'Invalid round. Must be round1 or round2' });
+    }
+    
+    // Get all evaluations for this team/round
+    const { data: evaluations, error: fetchError } = await supabaseAdmin
+      .from('evaluation')
+      .select('*')
+      .eq('team_id', team_id)
+      .eq('round', round);
+    
+    if (fetchError) {
+      console.error('[admin/finalize] Fetch error:', fetchError);
+      return res.status(500).json({ error: 'Failed to fetch evaluations', details: fetchError.message });
+    }
+    
+    if (!evaluations || evaluations.length === 0) {
+      return res.status(404).json({ error: 'No evaluations found for this team/round' });
+    }
+    
+    // Check if all 10 questions are completed
+    const completedEvaluations = evaluations.filter(e => e.status === 'completed');
+    if (completedEvaluations.length !== 10) {
+      return res.status(400).json({ 
+        error: `Only ${completedEvaluations.length}/10 questions are evaluated. Complete all evaluations before finalizing.`,
+        completed: completedEvaluations.length,
+        total: 10
+      });
+    }
+    
+    // Sum all scores
+    const totalScore = completedEvaluations.reduce((sum, e) => sum + (e.score || 0), 0);
+    
+    console.log(`[admin/finalize] Total score: ${totalScore} (from ${completedEvaluations.length} questions)`);
+    
+    // Update teams table - use RPC to bypass trigger locks for admin manual scoring
+    const scoreColumn = round === 'round1' ? 'r1_score' : 'r2_score';
+    
+    // Use raw SQL query to bypass triggers
+    const { data: teamData, error: updateError } = await supabaseAdmin.rpc('admin_update_team_score', {
+      p_team_id: team_id,
+      p_score_column: scoreColumn,
+      p_score: totalScore
+    });
+    
+    if (updateError) {
+      console.error('[admin/finalize] RPC error:', updateError);
+      // Fallback to direct update if RPC doesn't exist
+      console.log('[admin/finalize] Attempting direct update...');
+      const { data: directData, error: directError } = await supabaseAdmin
+        .from('teams')
+        .update({
+          [scoreColumn]: totalScore
+        })
+        .eq('team_id', team_id)
+        .select();
+      
+      if (directError) {
+        console.error('[admin/finalize] Direct update error:', directError);
+        return res.status(500).json({ 
+          error: 'Failed to update team score. The round may be locked. Please unlock the round first or contact an administrator.', 
+          details: directError.message 
+        });
+      }
+      
+      if (!directData || directData.length === 0) {
+        return res.status(404).json({ error: 'Team not found' });
+      }
+      
+      return res.json({ 
+        success: true, 
+        message: `${round} score finalized`,
+        total_score: totalScore,
+        team: directData[0]
+      });
+    }
+    
+    // Invalidate leaderboard cache
+    const { leaderboardCache } = await import('../lib/cache/leaderboard-cache');
+    leaderboardCache.invalidateAll();
+    
+    console.log(`[admin/finalize] Score finalized successfully. Team ${team_id} ${round} score: ${totalScore}`);
+    
+    res.json({ 
+      success: true, 
+      message: `${round} score finalized`,
+      total_score: totalScore,
+      team: teamData[0]
+    });
+  } catch (error) {
+    console.error('[admin/finalize] Error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' });
+  }
+});
+
+// Get evaluations for a specific team (for contestants to view their scores)
+router.get('/contest/evaluations/team/:team_id/round/:round', async (req: Request, res: Response) => {
+  try {
+    const { team_id, round } = req.params;
+    
+    // Fetch evaluations for this team/round
+    const { data, error } = await supabaseAdmin
+      .from('evaluation')
+      .select('queue_id, question_id, status, score, submission_time')
+      .eq('team_id', team_id)
+      .eq('round', round)
+      .order('question_id', { ascending: true });
+    
+    if (error) {
+      console.error('[contest/evaluations] Database error:', error);
+      return res.status(500).json({ error: 'Failed to fetch evaluations', details: error.message });
+    }
+    
+    console.log(`[contest/evaluations] Fetched ${data?.length || 0} evaluations for team ${team_id} ${round}`);
+    
+    res.json({ evaluations: data || [] });
+  } catch (error) {
+    console.error('[contest/evaluations] Error:', error);
+    res.status(500).json({ error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' });
+  }
+});
+
+// ===================================
 // Round 3 routes
+// ===================================
+
 // Get Round 3 questions (without solutions)
 router.get('/round3/questions', async (req: Request, res: Response) => {
   try {

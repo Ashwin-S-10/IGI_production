@@ -36,6 +36,11 @@ const panels = [
     icon: Users,
     body: "Assign squads, swap operatives, and mark extractions. Squad balance suggestions update live as submissions arrive.",
   },
+  {
+    title: "Evaluation",
+    icon: ClipboardList,
+    body: "Review and score Round 1 & 2 submissions manually. Each question is worth 0-10 points.",
+  },
 ];
 
 const overrides = [
@@ -90,7 +95,7 @@ export function AdminDashboard() {
     { path: '/missions/igi-3.mp4', name: 'IGI Mission 3', description: 'Third mission briefing video' },
   ];
 
-  // Poll telecast status
+  // Load telecast status once on mount
   useEffect(() => {
     const checkTelecastStatus = async () => {
       try {
@@ -105,9 +110,7 @@ export function AdminDashboard() {
     };
 
     checkTelecastStatus();
-    const interval = setInterval(checkTelecastStatus, 5000); // Check every 5 seconds
-    
-    return () => clearInterval(interval);
+    // No polling - manual refresh only
   }, []);
 
   // Fetch rounds state
@@ -398,6 +401,7 @@ export function AdminDashboard() {
                 onClick={() => {
                   const routeMap: Record<string, string> = {
                     'Team Management': '/mission/control/team-management',
+                    'Evaluation': '/mission/control/evaluation',
                   };
                   
                   const route = routeMap[title];
