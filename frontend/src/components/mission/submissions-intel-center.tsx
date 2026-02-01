@@ -267,7 +267,7 @@ export function SubmissionsIntelCenter() {
                 <MissionButton
                   variant="secondary"
                   className="text-xs"
-                  onClick={() => console.log('View details:', selectedSubmissionData.id)}
+                  onClick={() => {}}
                 >
                   <Eye className="w-4 h-4 mr-1" />
                   View Full

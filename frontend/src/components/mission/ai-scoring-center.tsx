@@ -315,7 +315,7 @@ export function AIScoringCenter() {
                 <MissionButton
                   variant="secondary"
                   className="text-xs"
-                  onClick={() => console.log('View logs:', selectedJobData.id)}
+                  onClick={() => {}}
                 >
                   View Logs
                 </MissionButton>

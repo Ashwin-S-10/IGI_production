@@ -15,6 +15,7 @@ import {
 } from "@/lib/firestore/hooks";
 import type { SubmissionRound1, SubmissionRound2 } from "@/lib/firestore/models";
 import { TelecastViewer } from "@/components/telecast/telecast-viewer";
+import { supabase } from "@/lib/supabase/client";
 
 interface RoundState {
   id: string;
@@ -179,12 +180,10 @@ export function ContestantDashboard() {
       
       try {
         const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-        console.log('Fetching team data for:', teamId);
         
         const response = await fetch(`${API_BASE_URL}/api/teams/${teamId}`);
         if (response.ok) {
           const data = await response.json();
-          console.log('Fetched team data:', data.data);
           setTeamData(data.data);
         } else {
           console.error('Failed to fetch team data:', response.status, await response.text());
@@ -194,9 +193,33 @@ export function ContestantDashboard() {
       }
     };
 
+    // Initial fetch
     fetchTeamData();
-    const interval = setInterval(fetchTeamData, 10000); // Poll every 10 seconds
-    return () => clearInterval(interval);
+
+    // Subscribe to real-time changes on the teams table
+    const teamId = user?.teamId;
+    if (!teamId) return;
+
+    const channel = supabase
+      .channel(`team-${teamId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'teams',
+          filter: `team_id=eq.${teamId}`,
+        },
+        (payload) => {
+          setTeamData(payload.new);
+        }
+      )
+      .subscribe();
+
+    // Cleanup subscription on unmount
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user?.teamId]);
 
   // Submissions now use raw Supabase types (snake_case)
@@ -220,18 +243,8 @@ export function ContestantDashboard() {
   const currentRank = teamData?.rank ?? null;
   const squadName = teamData?.team_name ?? team?.name ?? null;
 
-  // Debug logging
   useEffect(() => {
     if (teamData) {
-      console.log('Team data loaded:', {
-        team_name: teamData.team_name,
-        r1_score: teamData.r1_score,
-        r2_score: teamData.r2_score,
-        round3_1_score: teamData.round3_1_score,
-        round3_2_score: teamData.round3_2_score,
-        round3_3_score: teamData.round3_3_score,
-        rank: teamData.rank,
-      });
     }
   }, [teamData]);
 
@@ -360,19 +373,17 @@ export function ContestantDashboard() {
                 <div className="mt-4 flex flex-col gap-2">
                   <MissionButton
                     type="button"
-                    variant="secondary"
                     className="text-xs"
-                    disabled={telecastCompleted}
-                    onClick={() => !telecastCompleted && setShowYetToStart(true)}
-                  >
-                    Story Brief
-                  </MissionButton>
-                  <MissionButton
-                    type="button"
-                    className="text-xs"
+                    disabled={
+                      (round.id === 'round1' && teamData?.r1_submission_time) ||
+                      (round.id === 'round2' && teamData?.r2_submission_time)
+                    }
                     onClick={() => router.push(`/mission/round/${round.id}`)}
                   >
-                    Enter Round <ArrowUpRight className="ml-1 h-3 w-3" />
+                    {((round.id === 'round1' && teamData?.r1_submission_time) || 
+                      (round.id === 'round2' && teamData?.r2_submission_time)) 
+                      ? 'Submitted' 
+                      : 'Enter Round'} <ArrowUpRight className="ml-1 h-3 w-3" />
                   </MissionButton>
                 </div>
               </article>
@@ -381,23 +392,7 @@ export function ContestantDashboard() {
         </div>
       </section>
 
-      {/* Yet to Start Modal */}
-      {showYetToStart && (
-        <div 
-          className="fixed inset-0 z-[9998] bg-black/90 backdrop-blur-sm flex items-center justify-center"
-          onClick={() => setShowYetToStart(false)}
-        >
-          <div className="glass-panel max-w-md p-8 text-center" onClick={e => e.stopPropagation()}>
-            <h2 className="text-4xl font-bold neon-orange-text mb-4">YET TO START</h2>
-            <p className="text-white/70 text-lg mb-6">
-              The Story Brief will be available once the mission commander initiates the briefing.
-            </p>
-            <MissionButton onClick={() => setShowYetToStart(false)}>
-              Understood
-            </MissionButton>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 }

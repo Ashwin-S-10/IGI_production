@@ -147,7 +147,6 @@ export function AdminDashboard() {
     setUpdatingRound(roundId);
     try {
       const newFlag = currentFlag === 0 ? 1 : 0;
-      console.log(`🔄 Toggling ${roundId} Flag from ${currentFlag} to ${newFlag}`);
       
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/contest/rounds/${roundId}`,
@@ -160,7 +159,6 @@ export function AdminDashboard() {
       
       if (response.ok) {
         const updated = await response.json();
-        console.log('✅ Round updated:', updated);
         setRoundsState(prev => prev.map(r => r.id === roundId ? updated : r));
       } else {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));

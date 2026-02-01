@@ -1,11 +1,6 @@
 // API Client for communicating with the backend
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-// Debug: Log the API base URL (remove in production)
-if (typeof window !== 'undefined') {
-  console.log('[API Client] Using API_BASE_URL:', API_BASE_URL);
-}
-
 // Session management
 let sessionId: string | null = null;
 
@@ -34,9 +29,6 @@ async function apiCall<T = any>(
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
-  
-  // Debug: Log the full URL being called
-  console.log('[API Client] Calling:', url);
   
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',

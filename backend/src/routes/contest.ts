@@ -708,15 +708,8 @@ router.post('/admin/teams/:team_id/round/:round/finalize', async (req: Request, 
       return res.status(404).json({ error: 'No evaluations found for this team/round' });
     }
     
-    // Check if all 10 questions are completed
+    // Get completed evaluations (no longer require all 10 to be completed)
     const completedEvaluations = evaluations.filter(e => e.status === 'completed');
-    if (completedEvaluations.length !== 10) {
-      return res.status(400).json({ 
-        error: `Only ${completedEvaluations.length}/10 questions are evaluated. Complete all evaluations before finalizing.`,
-        completed: completedEvaluations.length,
-        total: 10
-      });
-    }
     
     // Sum all scores
     const totalScore = completedEvaluations.reduce((sum, e) => sum + (e.score || 0), 0);

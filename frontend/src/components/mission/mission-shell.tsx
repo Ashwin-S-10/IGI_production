@@ -82,15 +82,6 @@ export function MissionShell({ title, subtitle = "Mission Console", children }: 
               <h1 className="text-4xl font-bold text-white mb-3" style={{textShadow: "0 0 20px rgba(255, 107, 0, 0.5)"}}>{title}</h1>
             </div>
             <div className="flex flex-wrap gap-4 relative">
-              {role !== "admin" && (
-                <MissionButton 
-                  variant="secondary" 
-                  disabled={telecastCompleted}
-                  onClick={() => !telecastCompleted && setShowYetToStart(true)}
-                >
-                  {isMissionActive ? `Mission ${currentMission} Brief` : 'Story Brief'}
-                </MissionButton>
-              )}
               {role === "admin" && (
                 <button
                   onClick={() => logout()}
@@ -105,28 +96,7 @@ export function MissionShell({ title, subtitle = "Mission Console", children }: 
         </div>
       </div>
 
-      {/* Yet to Start Modal */}
-      {showYetToStart && (
-        <div 
-          className="fixed inset-0 z-[9998] bg-black/90 backdrop-blur-sm flex items-center justify-center"
-          onClick={() => setShowYetToStart(false)}
-        >
-          <div className="glass-panel max-w-md p-8 text-center" onClick={e => e.stopPropagation()}>
-            <h2 className="text-4xl font-bold neon-orange-text mb-4">
-              {isMissionActive ? `MISSION ${currentMission} PENDING` : 'YET TO START'}
-            </h2>
-            <p className="text-white/70 text-lg mb-6">
-              {isMissionActive ? 
-                `Mission ${currentMission} brief will be available once the mission commander completes the current telecast.` :
-                'The Story Brief will be available once the mission commander initiates the briefing.'
-              }
-            </p>
-            <MissionButton onClick={() => setShowYetToStart(false)}>
-              Understood
-            </MissionButton>
-          </div>
-        </div>
-      )}
+
       
       {/* Telecast Viewer - Shows mission videos when admin triggers them */}
       <TelecastViewer />
