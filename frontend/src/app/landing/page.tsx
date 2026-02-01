@@ -49,11 +49,6 @@ export default function LandingPage() {
           </span>
         </div>
         <div className="flex items-center gap-3">
-          {role !== "admin" && (
-            <MissionButton variant="secondary">
-              Story Brief
-            </MissionButton>
-          )}
           <MissionButton variant="ghost" onClick={() => logout()}>
             Logout
           </MissionButton>

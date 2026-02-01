@@ -50,6 +50,3 @@ export { supabase }
 export const isSupabaseConfigured = config.isValid
 
 // Supabase connection test is disabled - using backend API instead
-if (typeof window !== 'undefined' && !config.isValid) {
-  console.log('ℹ️ Supabase not configured. Using backend API at http://localhost:4000')
-}

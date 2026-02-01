@@ -38,7 +38,7 @@ export function AdminEvaluationPanel() {
   const [finalizingTeam, setFinalizingTeam] = useState<string | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
-  const [editingScores, setEditingScores] = useState<Record<string, number>>({});
+  const [editingScores, setEditingScores] = useState<Record<string, number | null>>({});
   const [editingFeedback, setEditingFeedback] = useState<Record<string, string>>({});
 
   // Fetch evaluations
@@ -175,11 +175,6 @@ export function AdminEvaluationPanel() {
     
     if (!team) return;
     
-    if (team.completed_evaluations !== 10) {
-      alert(`Only ${team.completed_evaluations}/10 questions are evaluated. Complete all evaluations before finalizing.`);
-      return;
-    }
-    
     const confirmed = window.confirm(
       `Finalize ${team.team_name}'s ${round} score?\n\nTotal Score: ${team.total_score}/100\n\nThis will update the team's score in the leaderboard.`
     );
@@ -310,7 +305,7 @@ export function AdminEvaluationPanel() {
             
             <MissionButton
               onClick={() => handleFinalizeTeam(team.team_id)}
-              disabled={team.completed_evaluations !== 10 || finalizingTeam === team.team_id}
+              disabled={finalizingTeam === team.team_id}
               className="w-full"
             >
               {finalizingTeam === team.team_id ? (

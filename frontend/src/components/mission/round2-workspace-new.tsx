@@ -6,6 +6,7 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import { MissionButton } from "@/components/ui/button";
 import { useAuth } from "@/components/providers/auth-provider";
 import { contestApi } from "@/lib/api-client";
+import { supabase } from "@/lib/supabase/client";
 
 interface Round2Question {
   question_id: number;
@@ -46,6 +47,7 @@ export function Round2WorkspaceNew({ roundId }: Round2WorkspaceNewProps) {
   const [submitting, setSubmitting] = useState<number | null>(null);
   const [finalSubmitting, setFinalSubmitting] = useState(false);
   const [isRoundLocked, setIsRoundLocked] = useState(false);
+  const [teamData, setTeamData] = useState<any>(null);
   // Track language selection for each question
   const [questionLanguages, setQuestionLanguages] = useState<Record<number, string>>({});
 
@@ -58,9 +60,12 @@ export function Round2WorkspaceNew({ roundId }: Round2WorkspaceNewProps) {
           try {
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/contest/teams/${user.teamId}`);
             if (response.ok) {
-              const teamData = await response.json();
-              if (teamData.team?.r2_submission_time) {
-                console.log('[Round2] Round already completed, redirecting...');
+              const data = await response.json();
+              const teamInfo = data.team || data.data;
+              setTeamData(teamInfo);
+              
+              if (teamInfo?.r2_submission_time) {
+
                 setIsRoundLocked(true);
                 alert('Round 2 has already been submitted and is locked.');
                 router.push('/mission');
@@ -144,6 +149,36 @@ export function Round2WorkspaceNew({ roundId }: Round2WorkspaceNewProps) {
     };
 
     loadData();
+
+    // Subscribe to real-time changes on the teams table
+    const teamId = user?.teamId;
+    if (!teamId) return;
+
+    const channel = supabase
+      .channel(`team-round2-${teamId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'teams',
+          filter: `team_id=eq.${teamId}`,
+        },
+        (payload) => {
+          setTeamData(payload.new);
+          
+          // If r2_submission_time is set, lock the round
+          if (payload.new?.r2_submission_time) {
+            setIsRoundLocked(true);
+          }
+        }
+      )
+      .subscribe();
+
+    // Cleanup subscription on unmount
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user?.teamId]);
 
   // Auto-save answers to localStorage
@@ -372,18 +407,6 @@ export function Round2WorkspaceNew({ roundId }: Round2WorkspaceNewProps) {
                   />
                 </div>
 
-                {/* Evaluation Result Display */}
-                {isSubmitted && questionScore && (
-                  <div className="mb-4 bg-zinc-950 border border-zinc-700 rounded-lg p-4">
-                    <h4 className="text-sm font-bold text-cyan-400 mb-3">Evaluation Result</h4>
-                    
-                    {/* Analysis */}
-                    <div>
-                      <div className="text-sm text-zinc-300 whitespace-pre-wrap">{questionScore.analysis}</div>
-                    </div>
-                  </div>
-                )}
-
                 {/* Submit Button */}
                 <MissionButton
                   onClick={() => handleSubmitAnswer(question.question_id)}
@@ -409,11 +432,11 @@ export function Round2WorkspaceNew({ roundId }: Round2WorkspaceNewProps) {
             </div>
             <MissionButton
               onClick={handleFinalSubmit}
-              disabled={finalSubmitting}
+              disabled={finalSubmitting || isRoundLocked || !!teamData?.r2_submission_time}
               variant="primary"
             >
               {finalSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-              Submit Round 2
+              {teamData?.r2_submission_time ? 'Submitted' : 'Submit Round 2'}
             </MissionButton>
           </div>
         </div>

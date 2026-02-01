@@ -6,6 +6,7 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import { MissionButton } from "@/components/ui/button";
 import { useAuth } from "@/components/providers/auth-provider";
 import { contestApi } from "@/lib/api-client";
+import { supabase } from "@/lib/supabase/client";
 
 interface Question {
   question_id: number;
@@ -38,6 +39,7 @@ export function Round1Workspace({ roundId }: Round1WorkspaceProps) {
   const [submitting, setSubmitting] = useState<number | null>(null);
   const [finalSubmitting, setFinalSubmitting] = useState(false);
   const [isRoundLocked, setIsRoundLocked] = useState(false);
+  const [teamData, setTeamData] = useState<any>(null);
 
   // Load questions and check if round is locked
   useEffect(() => {
@@ -48,9 +50,12 @@ export function Round1Workspace({ roundId }: Round1WorkspaceProps) {
           try {
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/contest/teams/${user.teamId}`);
             if (response.ok) {
-              const teamData = await response.json();
-              if (teamData.team?.r1_submission_time) {
-                console.log('[Round1] Round already completed, redirecting...');
+              const data = await response.json();
+              const teamInfo = data.team || data.data;
+              setTeamData(teamInfo);
+              
+              if (teamInfo?.r1_submission_time) {
+
                 setIsRoundLocked(true);
                 alert('Round 1 has already been submitted and is locked.');
                 router.push('/mission');
@@ -107,6 +112,36 @@ export function Round1Workspace({ roundId }: Round1WorkspaceProps) {
     };
 
     loadData();
+
+    // Subscribe to real-time changes on the teams table
+    const teamId = user?.teamId;
+    if (!teamId) return;
+
+    const channel = supabase
+      .channel(`team-round1-${teamId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'teams',
+          filter: `team_id=eq.${teamId}`,
+        },
+        (payload) => {
+          setTeamData(payload.new);
+          
+          // If r1_submission_time is set, lock the round
+          if (payload.new?.r1_submission_time) {
+            setIsRoundLocked(true);
+          }
+        }
+      )
+      .subscribe();
+
+    // Cleanup subscription on unmount
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user?.teamId]);
 
   // Save answers to localStorage
@@ -324,7 +359,7 @@ export function Round1Workspace({ roundId }: Round1WorkspaceProps) {
               </div>
               <MissionButton
                 onClick={handleFinalSubmit}
-                disabled={finalSubmitting}
+                disabled={finalSubmitting || isRoundLocked || !!teamData?.r1_submission_time}
                 className="bg-green-600 hover:bg-green-700"
               >
                 {finalSubmitting ? (
@@ -332,6 +367,8 @@ export function Round1Workspace({ roundId }: Round1WorkspaceProps) {
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                     Submitting...
                   </>
+                ) : teamData?.r1_submission_time ? (
+                  'Submitted'
                 ) : (
                   'Submit Round 1'
                 )}
