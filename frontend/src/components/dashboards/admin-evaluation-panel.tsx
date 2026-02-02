@@ -32,7 +32,7 @@ interface TeamProgress {
 }
 
 export function AdminEvaluationPanel() {
-  const [round, setRound] = useState<'round1' | 'round2'>('round1');
+  const [round, setRound] = useState<'round1' | 'round2' | 'round3'>('round1');
   const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -43,12 +43,20 @@ export function AdminEvaluationPanel() {
   const [editingFeedback, setEditingFeedback] = useState<Record<string, string>>({});
 
   // Question lookup utility with caching
-  const getQuestionForEvaluation = useCallback((roundId: string, questionNumber: string): RoundQuestion | null => {
-    // Map database question_number (e.g., "1", "2") to shared format (e.g., "r1-q1", "r2-q2")
-    const roundPrefix = roundId.replace('round', 'r'); // "round1" -> "r1"
-    const questionId = `${roundPrefix}-q${questionNumber}`; // "r1-q1"
+  const getQuestionForEvaluation = useCallback((roundId: string, questionId: string): RoundQuestion | null => {
+    // For round3, question_id is "round3_1", "round3_2", "round3_3"
+    if (roundId === 'round3') {
+      // Extract question number from "round3_1" -> "1"
+      const questionNumber = questionId.split('_')[1];
+      const sharedQuestionId = `r3-q${questionNumber}`; // "r3-q1"
+      return getQuestionDetails(roundId, sharedQuestionId);
+    }
     
-    return getQuestionDetails(roundId, questionId);
+    // For round1 and round2, question_id is just the number "1", "2", etc.
+    const roundPrefix = roundId.replace('round', 'r'); // "round1" -> "r1"
+    const sharedQuestionId = `${roundPrefix}-q${questionId}`; // "r1-q1"
+    
+    return getQuestionDetails(roundId, sharedQuestionId);
   }, []);
 
   // Fetch evaluations
@@ -132,8 +140,11 @@ export function AdminEvaluationPanel() {
       return;
     }
     
-    if (score < 0 || score > 10) {
-      alert('Score must be between 0 and 10');
+    // All questions are scored out of 10
+    const maxScore = 10;
+    
+    if (score < 0 || score > maxScore) {
+      alert(`Score must be between 0 and ${maxScore}`);
       return;
     }
     
@@ -177,7 +188,7 @@ export function AdminEvaluationPanel() {
     } finally {
       setSavingId(null);
     }
-  }, [editingScores, editingFeedback]);
+  }, [editingScores, editingFeedback, round]);
 
   // Finalize team score
   const handleFinalizeTeam = useCallback(async (teamId: string) => {
@@ -185,8 +196,10 @@ export function AdminEvaluationPanel() {
     
     if (!team) return;
     
+    const maxScore = round === 'round3' ? 30 : 100;
+    
     const confirmed = window.confirm(
-      `Finalize ${team.team_name}'s ${round} score?\n\nTotal Score: ${team.total_score}/100\n\nThis will update the team's score in the leaderboard.`
+      `Finalize ${team.team_name}'s ${round} score?\n\nTotal Score: ${team.total_score}/${maxScore}\n\nThis will update the team's score in the leaderboard.`
     );
     
     if (!confirmed) return;
@@ -203,7 +216,10 @@ export function AdminEvaluationPanel() {
       const data = await response.json();
       
       if (data.success) {
-        alert(`${team.team_name}'s ${round} score has been finalized: ${data.total_score}/100`);
+        const scoreMessage = round === 'round3' 
+          ? `${team.team_name}'s ${round} individual question scores have been finalized!`
+          : `${team.team_name}'s ${round} score has been finalized: ${data.total_score}/${maxScore}`;
+        alert(scoreMessage);
         fetchEvaluations(); // Refresh data
       } else {
         alert(`Failed to finalize score: ${data.error || 'Unknown error'}`);
@@ -243,11 +259,12 @@ export function AdminEvaluationPanel() {
           <label className="block text-sm text-gray-400 mb-1">Round</label>
           <select
             value={round}
-            onChange={(e) => setRound(e.target.value as 'round1' | 'round2')}
+            onChange={(e) => setRound(e.target.value as 'round1' | 'round2' | 'round3')}
             className="px-3 py-2 bg-black border border-[#FF6B00]/30 rounded text-white focus:outline-none focus:border-[#FF6B00]"
           >
             <option value="round1">Round 1</option>
             <option value="round2">Round 2</option>
+            <option value="round3">Round 3</option>
           </select>
         </div>
 
@@ -285,7 +302,12 @@ export function AdminEvaluationPanel() {
 
       {/* Team Progress Summary */}
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-        {teamProgress().map(team => (
+        {teamProgress().map(team => {
+          // Determine max questions based on round
+          const maxQuestions = round === 'round3' ? 3 : 10;
+          const maxScore = round === 'round3' ? 30 : 100;
+          
+          return (
           <div
             key={team.team_id}
             className="bg-black/50 border border-[#FF6B00]/30 rounded-lg p-4"
@@ -294,7 +316,7 @@ export function AdminEvaluationPanel() {
               <div>
                 <h3 className="font-bold text-white">{team.team_name}</h3>
                 <div className="text-sm text-gray-400 mt-1">
-                  Evaluated: {team.completed_evaluations}/10 
+                  Evaluated: {team.completed_evaluations}/{maxQuestions} 
                   {team.pending_evaluations > 0 && (
                     <span className="text-yellow-400 ml-2">
                       ({team.pending_evaluations} pending)
@@ -302,7 +324,7 @@ export function AdminEvaluationPanel() {
                   )}
                 </div>
               </div>
-              {team.completed_evaluations === 10 ? (
+              {team.completed_evaluations === maxQuestions ? (
                 <CheckCircle className="h-5 w-5 text-green-400" />
               ) : (
                 <Clock className="h-5 w-5 text-yellow-400" />
@@ -310,7 +332,7 @@ export function AdminEvaluationPanel() {
             </div>
             
             <div className="text-2xl font-bold text-[#FF6B00] mb-3">
-              {team.total_score}/100
+              {team.total_score}/{maxScore}
             </div>
             
             <MissionButton
@@ -328,7 +350,7 @@ export function AdminEvaluationPanel() {
               )}
             </MissionButton>
           </div>
-        ))}
+        )})}
       </div>
 
       {/* Evaluations List */}
@@ -387,12 +409,7 @@ export function AdminEvaluationPanel() {
                         <label className="block text-sm text-gray-400 mb-1">Question:</label>
                         <div className="bg-black/30 border border-[#FF6B00]/20 rounded p-3">
                           <h5 className="font-bold text-white mb-2">{question.title}</h5>
-                          <p className="text-gray-300 whitespace-pre-wrap text-sm mb-2">{question.prompt}</p>
-                          <div className="flex items-center gap-4 text-xs text-gray-400">
-                            <span className="px-2 py-1 bg-[#FF6B00]/20 rounded">Points: {question.points}</span>
-                            <span className="px-2 py-1 bg-blue-500/20 rounded">Time: {question.timeLimit}</span>
-                            <span className="px-2 py-1 bg-purple-500/20 rounded capitalize">Difficulty: {question.difficulty}</span>
-                          </div>
+                          <p className="text-gray-300 whitespace-pre-wrap text-sm">{question.prompt}</p>
                         </div>
                       </div>
                     );
@@ -419,7 +436,9 @@ export function AdminEvaluationPanel() {
                 {/* Score Input */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-sm text-gray-400 mb-1">Score (0-10):</label>
+                    <label className="block text-sm text-gray-400 mb-1">
+                      Score (0-10):
+                    </label>
                     <input
                       type="number"
                       min="0"

@@ -688,8 +688,8 @@ router.post('/admin/teams/:team_id/round/:round/finalize', async (req: Request, 
     console.log(`[admin/finalize] Finalizing ${round} score for team ${team_id}`);
     
     // Validate round
-    if (round !== 'round1' && round !== 'round2') {
-      return res.status(400).json({ error: 'Invalid round. Must be round1 or round2' });
+    if (round !== 'round1' && round !== 'round2' && round !== 'round3') {
+      return res.status(400).json({ error: 'Invalid round. Must be round1, round2, or round3' });
     }
     
     // Get all evaluations for this team/round
@@ -717,7 +717,65 @@ router.post('/admin/teams/:team_id/round/:round/finalize', async (req: Request, 
     console.log(`[admin/finalize] Total score: ${totalScore} (from ${completedEvaluations.length} questions)`);
     
     // Update teams table - use RPC to bypass trigger locks for admin manual scoring
-    const scoreColumn = round === 'round1' ? 'r1_score' : 'r2_score';
+    let scoreColumn: string;
+    
+    if (round === 'round1') {
+      scoreColumn = 'r1_score';
+    } else if (round === 'round2') {
+      scoreColumn = 'r2_score';
+    } else if (round === 'round3') {
+      // For round3, need to update individual question scores based on evaluation question_id
+      const round3Updates: Record<string, number> = {};
+      
+      completedEvaluations.forEach(evaluation => {
+        const questionId = evaluation.question_id;
+        const score = evaluation.score || 0;
+        
+        // Map question_id to score columns
+        if (questionId === 'round3_1') {
+          round3Updates['round3_1_score'] = Math.max(round3Updates['round3_1_score'] || 0, score);
+        } else if (questionId === 'round3_2') {
+          round3Updates['round3_2_score'] = Math.max(round3Updates['round3_2_score'] || 0, score);
+        } else if (questionId === 'round3_3') {
+          round3Updates['round3_3_score'] = Math.max(round3Updates['round3_3_score'] || 0, score);
+        }
+      });
+      
+      // Apply round3 updates
+      console.log('[admin/finalize] Round3 score updates:', round3Updates);
+      const { data: round3Data, error: round3Error } = await supabaseAdmin
+        .from('teams')
+        .update(round3Updates)
+        .eq('team_id', team_id)
+        .select();
+      
+      if (round3Error) {
+        console.error('[admin/finalize] Round3 update error:', round3Error);
+        return res.status(500).json({ 
+          error: 'Failed to update team scores', 
+          details: round3Error.message 
+        });
+      }
+      
+      if (!round3Data || round3Data.length === 0) {
+        return res.status(404).json({ error: 'Team not found' });
+      }
+      
+      // Invalidate leaderboard cache
+      const { leaderboardCache } = await import('../lib/cache/leaderboard-cache');
+      leaderboardCache.invalidateAll();
+      
+      console.log(`[admin/finalize] Round3 scores finalized successfully. Team ${team_id}`);
+      
+      return res.json({ 
+        success: true, 
+        message: `round3 scores finalized`,
+        scores: round3Updates,
+        team: round3Data[0]
+      });
+    } else {
+      return res.status(400).json({ error: 'Invalid round' });
+    }
     
     // Try direct update with service role key (should bypass RLS)
     console.log('[admin/finalize] Attempting direct update with service role...');
@@ -880,7 +938,13 @@ router.post('/round3/submit', async (req: Request, res: Response) => {
 
     console.log(`[Round3 Submit] Team: ${team_id}, Question: ${question_id}`);
 
-    // Map question_id to database columns and shared question ID
+    // Reject unknown team_id
+    if (team_id === 'unknown' || !team_id.trim()) {
+      console.error('[Round3 Submit] Invalid team_id:', team_id);
+      return res.status(401).json({ error: 'Authentication required. Please log in.' });
+    }
+
+    // Map question_id to shared question ID
     let mapping: QuestionMapping;
     try {
       mapping = getQuestionMapping(question_id);
@@ -894,12 +958,12 @@ router.post('/round3/submit', async (req: Request, res: Response) => {
       });
     }
 
-    const { sharedQuestionId, scoreColumn, timestampColumn } = mapping;
+    const { sharedQuestionId } = mapping;
 
-    // Verify team exists and get existing score
+    // Verify team exists
     const { data: teamData, error: teamError } = await supabaseAdmin
       .from('teams')
-      .select('team_id, team_name, round3_1_score, round3_2_score, round3_3_score')
+      .select('team_id, team_name')
       .eq('team_id', team_id)
       .single();
 
@@ -907,9 +971,6 @@ router.post('/round3/submit', async (req: Request, res: Response) => {
       console.error('[Round3 Submit] Team not found:', teamError);
       return res.status(404).json({ error: 'Team not found' });
     }
-
-    const existingScore = teamData[scoreColumn] as number | null;
-    console.log(`[Round3 Submit] Existing score for ${question_id}:`, existingScore);
 
     // Fetch question details from shared package
     const question = await getQuestionDetails('round3', sharedQuestionId);
@@ -919,90 +980,57 @@ router.post('/round3/submit', async (req: Request, res: Response) => {
       return res.status(500).json({ error: 'Question configuration error' });
     }
 
-    console.log(`[Round3 Submit] Evaluating question: ${question.title}`);
+    console.log(`[Round3 Submit] Storing submission for admin evaluation: ${question.title}`);
 
-    // Evaluate answer using Gemini
-    const evaluationResult = await evaluateRound3Answer(
-      question.title,
-      question.prompt,
-      answer,
-      sharedQuestionId
-    );
+    const currentTimestamp = new Date().toISOString();
 
-    const newScore = evaluationResult.score;
-
-    console.log(`[Round3 Submit] Evaluation complete:`, {
-      newScore,
-      existingScore,
-      improvement: newScore > (existingScore || 0)
-    });
-
-    // Check score improvement rule
-    if (existingScore !== null && newScore <= existingScore) {
-      console.log(`[Round3 Submit] Score did not improve. Rejecting submission.`);
-      return res.status(400).json({
-        error: 'Score must improve',
-        message: 'Your new score must be higher than your previous score to be saved.',
-        score: existingScore,
-        newScore: newScore,
-        improved: false,
-        previousScore: existingScore,
-        analysis: evaluationResult.analysis
-      });
+    // Store submission in evaluation table for manual admin review
+    const { data, error } = await supabaseAdmin
+      .from('evaluation')
+      .upsert({
+        team_id,
+        round: 'round3',
+        question_id: question_id.toString(),
+        raw_answer: typeof answer === 'string' ? answer : JSON.stringify(answer),
+        status: 'pending',
+        submission_time: currentTimestamp
+      }, {
+        onConflict: 'team_id,round,question_id',
+        ignoreDuplicates: false
+      })
+      .select();
+    
+    if (error) {
+      console.error('[Round3 Submit] Database error:', error);
+      return res.status(500).json({ error: 'Failed to save submission', details: error.message });
     }
+    
+    console.log(`[Round3 Submit] Submission saved successfully. Queue ID: ${data[0]?.queue_id}`);
 
-    // Update team with new score and timestamp
-    const updateData: Record<string, any> = {
-      [scoreColumn]: newScore,
-      [timestampColumn]: new Date().toISOString()
-    };
-
-    const { data: updateResult, error: updateError } = await supabaseAdmin
+    // Update timestamp in teams table to mark submission
+    const { timestampColumn } = mapping;
+    console.log(`[Round3 Submit] Updating timestamp column: ${timestampColumn} for team: ${team_id}`);
+    
+    const { data: updateData, error: timestampError } = await supabaseAdmin
       .from('teams')
-      .update(updateData)
+      .update({ [timestampColumn]: currentTimestamp })
       .eq('team_id', team_id)
       .select();
 
-    if (updateError) {
-      console.error('[Round3 Submit] Database update error:', updateError);
-      return res.status(500).json({ 
-        error: 'Failed to save score',
-        details: updateError.message 
-      });
+    if (timestampError) {
+      console.error('[Round3 Submit] Failed to update timestamp:', timestampError);
+      // Still return success since the evaluation was saved
+    } else {
+      console.log(`[Round3 Submit] Timestamp updated successfully:`, updateData);
     }
     
-    // Invalidate leaderboard cache (trigger will auto-update ranks)
-    const { leaderboardCache } = await import('../lib/cache/leaderboard-cache');
-    leaderboardCache.invalidateAll();
-
-    console.log(`[Round3 Submit] ✅ Score saved successfully:`, {
-      team_id,
-      question_id,
-      score: newScore,
-      previousScore: existingScore
-    });
-
-    // Log detailed evaluation for audit
-    console.log(`[Round3 Evaluation Details]`, {
-      team_id,
-      team_name: teamData.team_name,
-      question_id,
-      question_title: question.title,
-      score: newScore,
-      previousScore: existingScore,
-      improved: true,
-      details: evaluationResult.details,
-      timestamp: new Date().toISOString()
-    });
-
-    // Return success response
+    // Return pending status - admin will score later
     res.json({
       success: true,
-      score: newScore,
-      analysis: evaluationResult.analysis,
-      improved: true,
-      previousScore: existingScore,
-      details: evaluationResult.details
+      status: 'pending',
+      message: 'Answer submitted for evaluation',
+      queue_id: data[0]?.queue_id,
+      timestamp: currentTimestamp
     });
 
   } catch (error) {
@@ -1191,7 +1219,7 @@ router.get('/teams/:team_id', async (req: Request, res: Response) => {
     
     const { data, error } = await supabaseAdmin
       .from('teams')
-      .select('team_id, team_name, r1_submission_time, r2_submission_time, r1_score, r2_score')
+      .select('team_id, team_name, r1_submission_time, r2_submission_time, r1_score, r2_score, round3_1_timestamp, round3_2_timestamp, round3_3_timestamp, round3_1_score, round3_2_score, round3_3_score')
       .eq('team_id', team_id)
       .single();
     
