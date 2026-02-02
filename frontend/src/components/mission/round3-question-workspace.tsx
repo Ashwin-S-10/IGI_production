@@ -62,6 +62,7 @@ export function Round3QuestionWorkspace({
   const storageKey = `round3_q${questionNumber}_start_time_${teamId}`;
   const draftKey = `round3_q${questionNumber}_draft_${teamId}`;
   const submittedKey = `round3_q${questionNumber}_submitted_${teamId}`;
+  const [currentFlag, setCurrentFlag] = useState<number | null>(null);
 
   // Fetch round state from backend to get Flag and determine which question to show
   useEffect(() => {
@@ -96,6 +97,32 @@ export function Round3QuestionWorkspace({
     const interval = setInterval(fetchRoundState, 10000);
     return () => clearInterval(interval);
   }, []);
+
+  // Clear submitted state when Flag (subround) changes
+  useEffect(() => {
+    if (roundState?.Flag && currentFlag !== null && roundState.Flag !== currentFlag) {
+      // Flag has changed, clear the submitted state
+      setSubmitted(false);
+      setScore(null);
+      setAnalysis(null);
+      setPreviousScore(null);
+      setError(null);
+      setCodeInput("");
+      hasAutoSubmitted.current = false;
+      
+      // Clear localStorage draft for the previous question
+      const prevDraftKey = `round3_q${currentFlag}_draft_${teamId}`;
+      localStorage.removeItem(prevDraftKey);
+      
+      // Check submission status for new question
+      checkSubmissionStatus();
+    }
+    
+    // Update current flag
+    if (roundState?.Flag) {
+      setCurrentFlag(roundState.Flag);
+    }
+  }, [roundState?.Flag, currentFlag, teamId]);
 
   // Calculate time left from end_time (server-authoritative)
   useEffect(() => {
@@ -143,7 +170,7 @@ export function Round3QuestionWorkspace({
     return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   })();
 
-  // Load draft and submission state
+  // Load draft and check submission status from backend
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -152,14 +179,42 @@ export function Round3QuestionWorkspace({
       setCodeInput(draft);
     }
 
-    const isSubmitted = localStorage.getItem(submittedKey) === "true";
-    setSubmitted(isSubmitted);
-
-    // Fetch existing score if submitted
-    if (isSubmitted && roundState?.Flag) {
-      fetchExistingScore();
+    // Check submission status from backend timestamp
+    if (roundState?.Flag) {
+      checkSubmissionStatus();
     }
-  }, [draftKey, submittedKey, roundState?.Flag]);
+  }, [draftKey, roundState?.Flag]);
+
+  // Check if already submitted by checking timestamp from backend
+  const checkSubmissionStatus = async () => {
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/api/contest/teams/${teamId}`,
+        {
+          headers: {
+            "x-session-id": localStorage.getItem("sessionId") || "",
+          },
+        }
+      );
+      
+      if (response.ok) {
+        const result = await response.json();
+        const teamData = result.team || result; // Handle both wrapped and unwrapped responses
+        const timestampKey = `round3_${roundState?.Flag}_timestamp`;
+        const hasTimestamp = teamData[timestampKey] !== null && teamData[timestampKey] !== undefined;
+        
+        console.log('[Round3] Checking submission status:', { timestampKey, value: teamData[timestampKey], hasTimestamp });
+        
+        setSubmitted(hasTimestamp);
+        
+        if (hasTimestamp) {
+          fetchExistingScore();
+        }
+      }
+    } catch (error) {
+      console.error("Failed to check submission status:", error);
+    }
+  };
 
   // Fetch existing score from backend
   const fetchExistingScore = async () => {
@@ -234,17 +289,7 @@ export function Round3QuestionWorkspace({
 
         if (!response.ok) {
           const errorData = await response.json();
-          
-          // Special handling for score improvement error
-          if (errorData.error === 'Score must improve') {
-            setError(`Your new score (${errorData.newScore}) must be higher than your previous score (${errorData.previousScore}) to be saved.`);
-            // Still show the analysis even if score didn't improve
-            if (errorData.analysis) {
-              setAnalysis(errorData.analysis);
-            }
-          } else {
-            setError(errorData.message || errorData.error || "Submission failed");
-          }
+          setError(errorData.message || errorData.error || "Submission failed");
           return;
         }
 
@@ -252,10 +297,10 @@ export function Round3QuestionWorkspace({
         console.log("[Round3 Submit] Success:", result);
 
         setSubmitted(true);
-        setScore(result.score);
-        setAnalysis(result.analysis);
-        setPreviousScore(result.previousScore);
-        localStorage.setItem(submittedKey, "true");
+        // Round 3 now uses manual evaluation - no immediate score
+        setScore(null);
+        setAnalysis("Your submission has been received and is awaiting manual evaluation by the admin team. Scores will be updated after review.");
+        setPreviousScore(null);
         localStorage.removeItem(draftKey);
       } catch (err) {
         console.error("[Round3 Submit] Error:", err);
@@ -410,55 +455,11 @@ export function Round3QuestionWorkspace({
 
           {/* Submission Status */}
           {submitted && (
-            <div className="space-y-4">
-              <div className="bg-green-500/10 border border-green-500/30 rounded p-4 text-center">
-                <div className="flex items-center justify-center gap-2 text-green-400">
-                  <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                  <span className="font-semibold uppercase tracking-wider">SUBMITTED</span>
-                </div>
-                <p className="text-gray-300 text-sm mt-2">
-                  Answer submitted. Awaiting evaluation.
-                </p>
+            <div className="bg-green-500/10 border border-green-500/30 rounded p-4 text-center">
+              <div className="flex items-center justify-center gap-2 text-green-400">
+                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                <span className="font-semibold uppercase tracking-wider">SUBMITTED</span>
               </div>
-
-              {/* Score Display */}
-              {loadingScore ? (
-                <div className="bg-[#FF6B00]/10 border border-[#FF6B00]/30 rounded p-6 text-center">
-                  <Loader2 className="w-8 h-8 text-[#FF6B00] animate-spin mx-auto mb-2" />
-                  <p className="text-white/70 text-sm">Loading your score...</p>
-                </div>
-              ) : score !== null ? (
-                <div className="bg-[#FF6B00]/10 border border-[#FF6B00]/30 rounded p-6">
-                  <div className="space-y-4">
-                    <div className="text-center">
-                      <h3 className="text-lg font-semibold text-white mb-2">Your Score</h3>
-                      <div className="flex items-center justify-center gap-4">
-                        <div className="text-5xl font-bold text-[#FF6B00]">
-                          {score}
-                        </div>
-                        <div className="text-2xl text-white/50">/100</div>
-                      </div>
-                      {previousScore !== null && previousScore > 0 && (
-                        <p className="text-sm text-gray-400 mt-2">
-                          Previous score: {previousScore}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* AI Analysis */}
-                    {analysis && (
-                      <div className="border-t border-[#FF6B00]/20 pt-4">
-                        <h4 className="text-sm font-semibold text-white uppercase tracking-wider mb-2">
-                          Gemini AI Analysis
-                        </h4>
-                        <div className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">
-                          {analysis}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : null}
             </div>
           )}
 
