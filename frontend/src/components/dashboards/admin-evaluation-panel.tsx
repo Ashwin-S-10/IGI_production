@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import { Loader2, RefreshCw, CheckCircle, Clock } from "lucide-react";
 import { MissionButton } from "@/components/ui/button";
+import { getQuestionDetails, type RoundQuestion } from "@project/shared";
 
 interface Evaluation {
   queue_id: string;
@@ -40,6 +41,15 @@ export function AdminEvaluationPanel() {
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [editingScores, setEditingScores] = useState<Record<string, number | null>>({});
   const [editingFeedback, setEditingFeedback] = useState<Record<string, string>>({});
+
+  // Question lookup utility with caching
+  const getQuestionForEvaluation = useCallback((roundId: string, questionNumber: string): RoundQuestion | null => {
+    // Map database question_number (e.g., "1", "2") to shared format (e.g., "r1-q1", "r2-q2")
+    const roundPrefix = roundId.replace('round', 'r'); // "round1" -> "r1"
+    const questionId = `${roundPrefix}-q${questionNumber}`; // "r1-q1"
+    
+    return getQuestionDetails(roundId, questionId);
+  }, []);
 
   // Fetch evaluations
   const fetchEvaluations = useCallback(async () => {
@@ -367,9 +377,40 @@ export function AdminEvaluationPanel() {
                   </span>
                 </div>
 
+                {/* Question Details */}
+                {(() => {
+                  const question = getQuestionForEvaluation(evaluation.round, evaluation.question_id);
+                  
+                  if (question) {
+                    return (
+                      <div className="mb-3">
+                        <label className="block text-sm text-gray-400 mb-1">Question:</label>
+                        <div className="bg-black/30 border border-[#FF6B00]/20 rounded p-3">
+                          <h5 className="font-bold text-white mb-2">{question.title}</h5>
+                          <p className="text-gray-300 whitespace-pre-wrap text-sm mb-2">{question.prompt}</p>
+                          <div className="flex items-center gap-4 text-xs text-gray-400">
+                            <span className="px-2 py-1 bg-[#FF6B00]/20 rounded">Points: {question.points}</span>
+                            <span className="px-2 py-1 bg-blue-500/20 rounded">Time: {question.timeLimit}</span>
+                            <span className="px-2 py-1 bg-purple-500/20 rounded capitalize">Difficulty: {question.difficulty}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  } else {
+                    return (
+                      <div className="mb-3">
+                        <label className="block text-sm text-gray-400 mb-1">Question:</label>
+                        <div className="bg-red-900/20 border border-red-500/30 rounded p-3">
+                          <p className="text-red-400 text-sm">⚠️ Question data not available for this submission (Round: {evaluation.round}, Question: {evaluation.question_id})</p>
+                        </div>
+                      </div>
+                    );
+                  }
+                })()}
+
                 {/* Answer */}
                 <div className="mb-3">
-                  <label className="block text-sm text-gray-400 mb-1">Answer:</label>
+                  <label className="block text-sm text-gray-400 mb-1">Submitted Answer:</label>
                   <div className="bg-black border border-[#FF6B00]/30 rounded p-3 text-gray-300 whitespace-pre-wrap max-h-40 overflow-y-auto">
                     {evaluation.raw_answer}
                   </div>
