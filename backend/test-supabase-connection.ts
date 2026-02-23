@@ -9,14 +9,13 @@ import * as dotenv from 'dotenv';
 // Load environment variables
 dotenv.config();
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://spobccetsboeydbdgzom.supabase.co';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNwb2JjY2V0c2JvZXlkYmRnem9tIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2ODcxNzYxOSwiZXhwIjoyMDg0MjkzNjE5fQ.CcHkzD4vTOqku5DWXTrnHzpf0hnvQNyWzQ7mIg4D4EY';
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 console.log('🔍 Testing Supabase Connection...\n');
 console.log('Configuration:');
-console.log('  URL:', supabaseUrl);
-console.log('  Service Key:', supabaseServiceKey.substring(0, 20) + '...');
+console.log('  URL set:', !!supabaseUrl);
+console.log('  Service Key set:', !!supabaseServiceKey);
 console.log('');
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey, {

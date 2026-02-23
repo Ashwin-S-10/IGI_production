@@ -1,12 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
+import { env } from '../../config/env';
 
-// Initialize Supabase client with service role key for admin operations
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://spobccetsboeydbdgzom.supabase.co';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNwb2JjY2V0c2JvZXlkYmRnem9tIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2ODcxNzYxOSwiZXhwIjoyMDg0MjkzNjE5fQ.CcHkzD4vTOqku5DWXTrnHzpf0hnvQNyWzQ7mIg4D4EY';
+// Initialize Supabase client using environment configuration (no hard-coded keys)
+const supabaseUrl = env.SUPABASE_URL || '';
+const supabaseServiceKey = env.SUPABASE_SERVICE_KEY || '';
 
-console.log('[Teams Service] Supabase URL:', supabaseUrl);
-console.log('[Teams Service] Service Key exists:', !!supabaseServiceKey);
+console.log('[Teams Service] Supabase URL set:', !!supabaseUrl);
+console.log('[Teams Service] Service Key present:', !!supabaseServiceKey);
 
 export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
@@ -15,9 +15,8 @@ export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   }
 });
 
-// Anon client for regular operations
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNwb2JjY2V0c2JvZXlkYmRnem9tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg3MTc2MTksImV4cCI6MjA4NDI5MzYxOX0.NcFRqpyqY6jQjN5u0kwB98di5eNNHg6q5hiG8b9ot-Y';
+// Anon client for regular operations (reads)
+const supabaseAnonKey = env.SUPABASE_ANON_KEY || '';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 

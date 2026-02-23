@@ -7,9 +7,9 @@ function getSupabaseConfig() {
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   
   return {
-    url: url || 'https://placeholder.supabase.co',
-    key: key || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsYWNlaG9sZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NDUxOTI4MDAsImV4cCI6MTk2MDc2ODgwMH0.placeholder',
-    isValid: !!(url && key && url.startsWith('http'))
+    url: url || '',
+    key: key || '',
+    isValid: !!(url && key && url.startsWith && url.startsWith('http'))
   }
 }
 
@@ -19,30 +19,29 @@ const config = getSupabaseConfig()
 // Wrap in try-catch to prevent initialization errors
 let supabase: ReturnType<typeof createClient<Database>>
 
-try {
-  // Only create client if config is valid, otherwise use a dummy placeholder
-  if (config.isValid) {
-    supabase = createClient<Database>(config.url, config.key, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-      },
-    })
-  } else {
-    // Create a dummy client with valid URL format
-    console.warn('⚠️ Supabase not configured. Using placeholder client. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local')
-    supabase = createClient<Database>('https://placeholder.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsYWNlaG9sZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NDUxOTI4MDAsImV4cCI6MTk2MDc2ODgwMH0.placeholder', {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-    })
+  try {
+    if (config.isValid) {
+      supabase = createClient<Database>(config.url, config.key, {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+        },
+      })
+    } else {
+      console.warn('⚠️ Supabase not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local')
+      // Create a client with empty key/url to avoid embedding any secrets
+      supabase = createClient<Database>(config.url || '', config.key || '', {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
+      })
+    }
+  } catch (error) {
+    console.error('⚠️ Failed to initialize Supabase client:', error)
+    // Create a minimal fallback client with empty values
+    supabase = createClient<Database>(config.url || '', config.key || '')
   }
-} catch (error) {
-  console.error('⚠️ Failed to initialize Supabase client:', error)
-  // Create a minimal fallback client with valid URL
-  supabase = createClient<Database>('https://placeholder.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsYWNlaG9sZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NDUxOTI4MDAsImV4cCI6MTk2MDc2ODgwMH0.placeholder')
-}
 
 export { supabase }
 

@@ -12,11 +12,11 @@ function getSupabaseConfig() {
   
   console.log('🔍 [Supabase Client] Loading config...');
   console.log('  - URL:', url || 'NOT SET');
-  console.log('  - Key:', key ? `${key.substring(0, 20)}...` : 'NOT SET');
+  console.log('  - Key set:', !!key);
   
   return {
-    url: url || 'https://placeholder.supabase.co',
-    key: key || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsYWNlaG9sZGVyIiwicm9sZSI6ImFub24iLCJpYXQiOjE2NDUxOTI4MDAsImV4cCI6MTk2MDc2ODgwMH0.placeholder',
+    url: url || '',
+    key: key || '',
     isValid: !!(url && key)
   }
 }

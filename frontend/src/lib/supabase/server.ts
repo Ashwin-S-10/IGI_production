@@ -6,8 +6,8 @@ function getSupabaseServerConfig() {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   
   return {
-    url: url || 'https://placeholder.supabase.co',
-    serviceKey: serviceKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBsYWNlaG9sZGVyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTY0NTE5MjgwMCwiZXhwIjoxOTYwNzY4ODAwfQ.placeholder',
+    url: url || '',
+    serviceKey: serviceKey || '',
     isValid: !!(url && serviceKey)
   }
 }
